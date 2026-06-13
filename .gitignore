@@ -8,3 +8,4 @@ coverage
 *.db-journal
 data/db.json
 dev-server*.log
+prod-server*.log
