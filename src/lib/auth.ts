@@ -7,7 +7,14 @@ const SESSION_DAYS = 7;
 
 type AdminSession = {
   email: string;
+  name?: string;
+  picture?: string;
   exp: number;
+};
+
+type SignInAdminProfile = {
+  name?: string | null;
+  picture?: string | null;
 };
 
 function isProductionHttps() {
@@ -23,11 +30,23 @@ export function safeNext(value: FormDataEntryValue | string | null | undefined) 
   return next;
 }
 
-export async function signInAdmin(email: string) {
+export async function signInAdmin(email: string, profile: SignInAdminProfile = {}) {
   const cookieStore = await cookies();
   const exp = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
+  const session: AdminSession = {
+    email,
+    exp
+  };
 
-  cookieStore.set(COOKIE_NAME, signJson({ email, exp }), {
+  if (profile.name) {
+    session.name = profile.name;
+  }
+
+  if (profile.picture) {
+    session.picture = profile.picture;
+  }
+
+  cookieStore.set(COOKIE_NAME, signJson(session), {
     httpOnly: true,
     maxAge: SESSION_DAYS * 24 * 60 * 60,
     path: "/",

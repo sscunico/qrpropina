@@ -41,7 +41,10 @@ export async function GET(request: Request) {
       return appRedirect("/login?error=not_allowed");
     }
 
-    await signInAdmin(profile.email);
+    await signInAdmin(profile.email, {
+      name: profile.name,
+      picture: profile.picture
+    });
     return appRedirect(parsedState.next);
   } catch {
     return appRedirect("/login?error=google_failed");

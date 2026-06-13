@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, LogIn, LogOut } from "lucide-react";
+import { LayoutDashboard, LogIn, LogOut, User } from "lucide-react";
 import { logoutAdmin } from "@/app/login/actions";
 import { getAdminSession } from "@/lib/auth";
 
@@ -17,6 +17,16 @@ export async function AuthNav() {
 
   return (
     <>
+      <div className="profile-chip" title={session.email}>
+        {session.picture ? (
+          <img alt={session.name || session.email} src={session.picture} />
+        ) : (
+          <span className="profile-fallback">
+            <User size={16} />
+          </span>
+        )}
+        <span>{session.name || session.email}</span>
+      </div>
       <Link className="button secondary" href="/admin">
         <LayoutDashboard size={17} />
         Admin

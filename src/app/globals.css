@@ -90,6 +90,46 @@ select {
   margin: 0;
 }
 
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(260px, 36vw);
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--text);
+  padding: 4px 12px 4px 5px;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.profile-chip img,
+.profile-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.profile-chip img {
+  display: block;
+  object-fit: cover;
+}
+
+.profile-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--lavender);
+  color: var(--accent-strong);
+}
+
+.profile-chip span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .landing-hero {
   position: relative;
   display: grid;
@@ -635,6 +675,11 @@ h3 {
 
   .nav-links .button {
     flex: 1;
+  }
+
+  .profile-chip {
+    max-width: 100%;
+    width: 100%;
   }
 
   .form-grid {
