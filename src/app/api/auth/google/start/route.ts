@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { appUrl } from "@/lib/env";
 import {
   GOOGLE_OAUTH_STATE_COOKIE,
   createGoogleOAuthState,
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
   const next = searchParams.get("next");
 
   if (!googleOAuthIsConfigured()) {
-    return NextResponse.redirect(new URL("/login?error=google_not_configured", request.url));
+    return NextResponse.redirect(new URL("/login?error=google_not_configured", appUrl()));
   }
 
   const { state } = createGoogleOAuthState(next);
