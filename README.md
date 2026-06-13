@@ -4,6 +4,8 @@ MVP local para cobrar propinas por QR con Mercado Pago.
 
 ## Que incluye
 
+- Landing publica en `/`.
+- Login privado con Google en `/login`.
 - Panel en `/admin` para crear receptores.
 - URL publica por receptor: `/t/alias`.
 - QR descargable por receptor.
@@ -27,6 +29,20 @@ Abrir:
 http://localhost:3000/admin
 ```
 
+Para usar el login con Google en local, crea credenciales OAuth en Google Cloud y configura:
+
+```env
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
+ADMIN_GOOGLE_EMAILS="sscunico@gmail.com"
+```
+
+Callback local de Google:
+
+```text
+http://localhost:3000/api/auth/google/callback
+```
+
 ## Dominio
 
 El dominio de produccion sera:
@@ -40,6 +56,17 @@ En produccion, la variable debe quedar asi:
 ```env
 APP_URL="https://qrpropina.com"
 APP_NAME="qrpropina"
+ADMIN_SESSION_SECRET="una-clave-larga-random-para-sesiones"
+ADMIN_GOOGLE_EMAILS="sscunico@gmail.com"
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
+```
+
+En Google Cloud configura el OAuth Client como "Web application" y agrega estos Redirect URIs:
+
+```text
+http://localhost:3000/api/auth/google/callback
+https://qrpropina.com/api/auth/google/callback
 ```
 
 Las URLs que tenes que configurar en Mercado Pago seran:
