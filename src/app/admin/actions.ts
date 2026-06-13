@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { requireAdmin } from "@/lib/auth";
 import {
   createRecipientRecord,
   setRecipientActive,
@@ -22,6 +23,8 @@ const recipientSchema = z.object({
 });
 
 export async function createRecipient(formData: FormData) {
+  await requireAdmin();
+
   const parsed = recipientSchema.parse(Object.fromEntries(formData));
 
   const recipient = await createRecipientRecord({
@@ -37,6 +40,8 @@ export async function createRecipient(formData: FormData) {
 }
 
 export async function updateRecipient(id: string, formData: FormData) {
+  await requireAdmin();
+
   const parsed = recipientSchema.parse(Object.fromEntries(formData));
 
   await updateRecipientRecord(id, {
@@ -52,6 +57,8 @@ export async function updateRecipient(id: string, formData: FormData) {
 }
 
 export async function toggleRecipient(id: string, isActive: boolean) {
+  await requireAdmin();
+
   await setRecipientActive(id, isActive);
 
   revalidatePath("/admin");

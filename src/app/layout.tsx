@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { AuthNav } from "@/components/AuthNav";
 import { LogoMark } from "@/components/LogoMark";
 import { appName } from "@/lib/env";
 import "./globals.css";
@@ -20,17 +20,14 @@ export default function RootLayout({
       <body>
         <div className="app-shell">
           <header className="topbar">
-            <Link className="brand" href="/admin">
+            <Link className="brand" href="/">
               <span className="brand-mark">
                 <LogoMark className="brand-logo" />
               </span>
               <span>{appName()}</span>
             </Link>
             <nav className="nav-links">
-              <Link className="button secondary" href="/admin">
-                <Users size={17} />
-                Admin
-              </Link>
+              <AuthNav />
             </nav>
           </header>
           {children}

@@ -84,6 +84,208 @@ select {
   gap: 8px;
 }
 
+.logout-form {
+  margin: 0;
+}
+
+.landing-hero {
+  position: relative;
+  display: grid;
+  align-items: center;
+  min-height: min(720px, calc(100svh - 96px));
+  overflow: hidden;
+  background: #101828;
+  color: white;
+  padding: clamp(40px, 8vw, 92px) clamp(16px, 6vw, 80px);
+}
+
+.landing-hero::after {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+  content: "";
+}
+
+.landing-content {
+  position: relative;
+  z-index: 2;
+  width: min(620px, 100%);
+}
+
+.landing-content h1 {
+  margin-bottom: 14px;
+  font-size: clamp(3rem, 9vw, 6.5rem);
+}
+
+.landing-content p:not(.kicker) {
+  max-width: 560px;
+  color: #d7dee9;
+  font-size: clamp(1rem, 2.4vw, 1.35rem);
+  line-height: 1.55;
+}
+
+.hero-secondary {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.landing-scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: clamp(24px, 8vw, 120px);
+  opacity: 0.95;
+}
+
+.landing-scene::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 42px 42px;
+  content: "";
+}
+
+.scene-phone {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: min(320px, 34vw);
+  min-width: 250px;
+  aspect-ratio: 0.72;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 34px;
+  background: #f8fafc;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
+  padding: 32px 28px;
+  transform: rotate(4deg);
+}
+
+.scene-phone-top {
+  width: 86px;
+  height: 8px;
+  border-radius: 999px;
+  background: #d0d5dd;
+}
+
+.scene-qr {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  width: min(180px, 78%);
+  aspect-ratio: 1;
+  margin-top: 28px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #101828;
+}
+
+.scene-qr span {
+  border-radius: 3px;
+  background: transparent;
+}
+
+.scene-qr span.on {
+  background: #ffffff;
+}
+
+.scene-heart {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin-top: -36px;
+  border: 6px solid #f8fafc;
+  border-radius: 20px;
+  background: #101828;
+  color: white;
+}
+
+.scene-logo {
+  width: 50px;
+  height: 50px;
+}
+
+.scene-lines {
+  display: grid;
+  gap: 10px;
+  width: 78%;
+  margin-top: 28px;
+}
+
+.scene-lines span {
+  height: 11px;
+  border-radius: 999px;
+  background: #e4e7ec;
+}
+
+.scene-lines span:nth-child(2) {
+  width: 70%;
+}
+
+.scene-lines span:nth-child(3) {
+  width: 48%;
+}
+
+.landing-band {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+
+.landing-feature {
+  min-height: 180px;
+  background: white;
+  padding: clamp(20px, 4vw, 34px);
+}
+
+.landing-feature svg {
+  color: var(--accent);
+}
+
+.landing-feature h2 {
+  margin-top: 16px;
+}
+
+.landing-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 42px 0 52px;
+}
+
+.landing-strip h2 {
+  margin-bottom: 0;
+}
+
+.login-page {
+  display: grid;
+  place-items: center;
+  min-height: calc(100vh - 65px);
+  padding: 24px 16px 48px;
+}
+
+.login-panel {
+  width: min(430px, 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: white;
+  padding: 24px;
+}
+
+.login-heading {
+  margin-bottom: 22px;
+}
+
 .page {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
@@ -262,6 +464,17 @@ h3 {
 .button.danger {
   background: var(--danger);
   color: white;
+}
+
+.button.google-button {
+  border-color: var(--line);
+  background: #ffffff;
+  color: var(--text);
+}
+
+.button.disabled {
+  pointer-events: none;
+  opacity: 0.55;
 }
 
 .button:disabled {
@@ -457,5 +670,36 @@ h3 {
 
   .amount-grid {
     grid-template-columns: 1fr;
+  }
+
+  .landing-hero {
+    min-height: calc(100svh - 118px);
+    padding-top: 42px;
+    padding-bottom: 46px;
+  }
+
+  .landing-scene {
+    justify-content: center;
+    padding-right: 0;
+    opacity: 0.22;
+  }
+
+  .scene-phone {
+    width: 250px;
+    min-width: 250px;
+    transform: rotate(0deg);
+  }
+
+  .landing-band {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-feature {
+    min-height: auto;
+  }
+
+  .landing-strip {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
