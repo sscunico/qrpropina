@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { signInAdmin } from "@/lib/auth";
-import { appUrl } from "@/lib/env";
 import {
   GOOGLE_OAUTH_STATE_COOKIE,
   exchangeGoogleCode,
@@ -9,10 +8,6 @@ import {
   googleEmailIsAllowed,
   readGoogleOAuthState
 } from "@/lib/googleAuth";
-
-function appRedirect(path: string) {
-  return NextResponse.redirect(new URL(path, appUrl()));
-}
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -25,12 +20,12 @@ export async function GET(request: Request) {
   cookieStore.delete(GOOGLE_OAUTH_STATE_COOKIE);
 
   if (oauthError) {
-    return appRedirect(`/login?error=${encodeURIComponent(oauthError)}`);
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(oauthError)}`, request.url));
   }
 
   const parsedState = readGoogleOAuthState(state, storedState);
   if (!code || !parsedState) {
-    return appRedirect("/login?error=oauth_state");
+    return NextResponse.redirect(new URL("/login?error=oauth_state", request.url));
   }
 
   try {
@@ -38,12 +33,12 @@ export async function GET(request: Request) {
     const profile = await getGoogleUserInfo(token.access_token);
 
     if (!profile.email_verified || !googleEmailIsAllowed(profile.email)) {
-      return appRedirect("/login?error=not_allowed");
+      return NextResponse.redirect(new URL("/login?error=not_allowed", request.url));
     }
 
     await signInAdmin(profile.email);
-    return appRedirect(parsedState.next);
+    return NextResponse.redirect(new URL(parsedState.next, request.url));
   } catch {
-    return appRedirect("/login?error=google_failed");
+    return NextResponse.redirect(new URL("/login?error=google_failed", request.url));
   }
 }
