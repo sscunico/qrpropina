@@ -1,0 +1,10 @@
+.next
+node_modules
+dist
+coverage
+.env
+.env*.local
+*.db
+*.db-journal
+data/db.json
+dev-server*.log
