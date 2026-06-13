@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectRecipientMercadoPago } from "@/lib/db";
+import { appUrl } from "@/lib/env";
 import { exchangeOAuthCode, parseOAuthState } from "@/lib/mercadopago";
 
 export async function GET(request: Request) {
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
       expiresAt: tokens.expiresAt
     });
 
-    return NextResponse.redirect(new URL(`/admin/receptores/${recipientId}`, request.url));
+    return NextResponse.redirect(new URL(`/admin/receptores/${recipientId}`, appUrl()));
   } catch (error) {
     const message = error instanceof Error ? error.message : "OAuth failed.";
     return NextResponse.json({ error: message }, { status: 400 });
