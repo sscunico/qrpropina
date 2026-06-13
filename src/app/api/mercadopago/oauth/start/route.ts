@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
 import { getRecipientWithTips } from "@/lib/db";
 import { buildOAuthUrl } from "@/lib/mercadopago";
 
 export async function GET(request: Request) {
-  await requireAdmin();
-
   const { searchParams } = new URL(request.url);
   const recipientId = searchParams.get("recipientId");
 
