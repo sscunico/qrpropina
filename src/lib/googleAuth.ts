@@ -94,11 +94,6 @@ export function googleAllowedEmails() {
     .filter(Boolean);
 }
 
-export function googleEmailIsAllowed(email: string) {
-  const allowed = googleAllowedEmails();
-  return allowed.length > 0 && allowed.includes(email.trim().toLowerCase());
-}
-
 export async function exchangeGoogleCode(code: string): Promise<ValidGoogleTokenResponse> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;

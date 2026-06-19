@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { signInAdmin } from "@/lib/auth";
+import { signInUser } from "@/lib/auth";
+import { upsertGoogleUser } from "@/lib/db";
 import { appUrl } from "@/lib/env";
 import {
   GOOGLE_OAUTH_STATE_COOKIE,
   exchangeGoogleCode,
   getGoogleUserInfo,
-  googleEmailIsAllowed,
   readGoogleOAuthState
 } from "@/lib/googleAuth";
 
@@ -37,11 +37,17 @@ export async function GET(request: Request) {
     const token = await exchangeGoogleCode(code);
     const profile = await getGoogleUserInfo(token.access_token);
 
-    if (!profile.email_verified || !googleEmailIsAllowed(profile.email)) {
+    if (!profile.email_verified) {
       return appRedirect("/login?error=not_allowed");
     }
 
-    await signInAdmin(profile.email, {
+    const { user } = await upsertGoogleUser({
+      email: profile.email,
+      name: profile.name,
+      picture: profile.picture
+    });
+
+    await signInUser(user, {
       name: profile.name,
       picture: profile.picture
     });

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { WalletCards } from "lucide-react";
+import { CreatorAvatar } from "@/app/t/[slug]/CreatorAvatar";
 import { TipForm } from "@/app/t/[slug]/TipForm";
-import { getRecipientBySlug } from "@/lib/db";
+import { getCreatorBySlug } from "@/lib/db";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -9,42 +9,28 @@ type Props = {
 
 export const dynamic = "force-dynamic";
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 export default async function TipPage({ params }: Props) {
   const { slug } = await params;
-  const recipient = await getRecipientBySlug(slug);
+  const creator = await getCreatorBySlug(slug);
 
-  if (!recipient || !recipient.isActive) {
+  if (!creator || !creator.isActive) {
     notFound();
   }
 
   return (
     <main className="page-narrow">
       <section className="tip-surface">
-        <div className="tip-header">
-          <div className="avatar">{initials(recipient.displayName)}</div>
-          <p className="kicker">Propina segura</p>
-          <h1>{recipient.displayName}</h1>
-          <p className="muted">
-            {[recipient.role, recipient.locationName].filter(Boolean).join(" - ") ||
-              "Gracias por acompanarme con una propina."}
-          </p>
-          <div className="actions">
-            <span className="pill">
-              <WalletCards size={14} />
-              Mercado Pago
-            </span>
+        <div aria-hidden="true" className="tip-header" />
+        <div className="tip-profile-header">
+          <div className="tip-profile-avatar-column">
+            <CreatorAvatar displayName={creator.displayName} photoUrl={creator.photoUrl} />
+          </div>
+          <div className="tip-profile-name-column">
+            <h1>{creator.displayName}</h1>
           </div>
         </div>
-        <TipForm recipientName={recipient.displayName} slug={recipient.slug} />
+        <TipForm creatorName={creator.displayName} slug={creator.slug} />
       </section>
     </main>
   );

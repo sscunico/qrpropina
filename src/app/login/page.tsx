@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Chrome, LockKeyhole, QrCode } from "lucide-react";
+import { LockKeyhole, QrCode } from "lucide-react";
+import { GoogleIcon } from "@/components/GoogleIcon";
 import { getAdminSession, safeNext } from "@/lib/auth";
 import { googleOAuthIsConfigured } from "@/lib/googleAuth";
 
@@ -23,8 +24,8 @@ export default async function LoginPage({ searchParams }: Props) {
           <div className="result-icon">
             <LockKeyhole size={28} />
           </div>
-          <h1>Sesion activa</h1>
-          <p className="muted">Ya estas logueado en qrpropina.</p>
+          <h1>Sesión activa</h1>
+          <p className="muted">Ya estás logueado en qrpropina.</p>
           <Link className="button primary" href="/admin">
             <QrCode size={17} />
             Ir al admin
@@ -43,7 +44,7 @@ export default async function LoginPage({ searchParams }: Props) {
           </div>
           <p className="kicker">Acceso privado</p>
           <h1>Ingresar a qrpropina</h1>
-          <p className="muted">Administra receptores, QR y propinas desde tu panel.</p>
+          <p className="muted">Administra creadores, QR y propinas desde tu panel.</p>
         </div>
 
         <div className="form">
@@ -52,8 +53,8 @@ export default async function LoginPage({ searchParams }: Props) {
             className={googleConfigured ? "button google-button" : "button google-button disabled"}
             href={googleConfigured ? `/api/auth/google/start?next=${encodeURIComponent(next)}` : "#"}
           >
-            <Chrome size={18} />
-            Continuar con Google
+            <GoogleIcon size={18} />
+            Acceder con Google
           </Link>
           {!googleConfigured ? (
             <div className="message error">
@@ -68,12 +69,12 @@ export default async function LoginPage({ searchParams }: Props) {
 
 function LoginError({ error }: { error: string }) {
   const messages: Record<string, string> = {
-    google_not_configured: "Google OAuth todavia no esta configurado.",
-    oauth_state: "La sesion de Google expiro. Volve a intentar.",
+    google_not_configured: "Google OAuth todavía no está configurado.",
+    oauth_state: "La sesión de Google expiró. Volvé a intentar.",
     not_allowed: "Esta cuenta de Google no tiene permiso para entrar.",
     google_failed: "No se pudo validar la cuenta de Google.",
     access_denied: "El acceso con Google fue cancelado."
   };
 
-  return <div className="message error">{messages[error] || "No se pudo iniciar sesion."}</div>;
+  return <div className="message error">{messages[error] || "No se pudo iniciar sesión."}</div>;
 }

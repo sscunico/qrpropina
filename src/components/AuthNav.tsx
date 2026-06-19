@@ -32,7 +32,7 @@ export async function AuthNav() {
         Admin
       </Link>
       <form action={logoutAdmin} className="logout-form">
-        <button className="icon-button secondary" title="Cerrar sesion" type="submit">
+        <button className="icon-button secondary" title="Cerrar sesión" type="submit">
           <LogOut size={18} />
         </button>
       </form>

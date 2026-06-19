@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BadgePercent, HeartHandshake, LockKeyhole, QrCode, Smartphone, WalletCards } from "lucide-react";
+import { ArrowRight, BadgePercent, Heart, HeartHandshake, LockKeyhole, QrCode, Smartphone, WalletCards } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -7,7 +7,10 @@ export default function HomePage() {
       <section className="landing-hero">
         <div className="landing-content">
           <p className="landing-eyebrow">Propinas digitales por QR</p>
-          <h1>qrpropina</h1>
+          <h1 className="landing-title">
+            <span>qrpropina</span>
+            <Heart aria-label="Corazon" className="landing-title-heart" fill="currentColor" />
+          </h1>
           <p>
             Una forma simple y linda de recibir propinas: cada persona tiene su QR,
             el cliente escanea y paga desde el celular.
@@ -31,15 +34,15 @@ export default function HomePage() {
           <h2>Cada propina llega a la persona correcta</h2>
         </div>
         <p className="muted">
-          Creas receptores, imprimis sus QR y despues administras todo desde un panel privado.
+          Creas creadores, imprimis sus QR y despues administras todo desde un panel privado.
         </p>
       </section>
 
       <section className="landing-band" aria-label="Beneficios">
         <div className="landing-feature">
           <QrCode size={22} />
-          <h2>QR por receptor</h2>
-          <p className="muted">Un link publico para cada persona, listo para imprimir o compartir.</p>
+          <h2>QR por creador</h2>
+          <p className="muted">Un link público para cada persona, listo para imprimir o compartir.</p>
         </div>
         <div className="landing-feature">
           <WalletCards size={22} />
@@ -49,7 +52,7 @@ export default function HomePage() {
         <div className="landing-feature">
           <BadgePercent size={22} />
           <h2>Comision</h2>
-          <p className="muted">Definis el porcentaje de plataforma por cada receptor.</p>
+          <p className="muted">Definis el porcentaje de plataforma por cada creador.</p>
         </div>
         <div className="landing-feature">
           <Smartphone size={22} />

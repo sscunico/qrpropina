@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createTipRecord, getRecipientBySlug, updateTipRecord } from "@/lib/db";
-import { createMercadoPagoPreference } from "@/lib/mercadopago";
+import { createTipRecord, getCreatorBySlug, updateTipRecord } from "@/lib/db";
+import { isDemoCheckoutEnabled, platformCommissionPercent } from "@/lib/env";
+import { createMercadoPagoPreference, sellerIsConnected } from "@/lib/mercadopago";
 import { calculateFeeCents, pesosToCents } from "@/lib/money";
 
 const checkoutSchema = z.object({
@@ -13,17 +14,29 @@ const checkoutSchema = z.object({
 export async function POST(request: Request) {
   try {
     const input = checkoutSchema.parse(await request.json());
-    const recipient = await getRecipientBySlug(input.slug);
+    const creator = await getCreatorBySlug(input.slug);
 
-    if (!recipient || !recipient.isActive) {
-      return NextResponse.json({ error: "El receptor no esta disponible." }, { status: 404 });
+    if (!creator || !creator.isActive) {
+      return NextResponse.json({ error: "El creador no está disponible." }, { status: 404 });
+    }
+
+    const hasPlatformToken = Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN);
+    if (!isDemoCheckoutEnabled() && !sellerIsConnected(creator) && !hasPlatformToken) {
+      return NextResponse.json(
+        {
+          error:
+            "Este creador todavía no conectó Mercado Pago. No se puede cobrar una propina real."
+        },
+        { status: 409 }
+      );
     }
 
     const amountCents = pesosToCents(input.amount);
-    const platformFeeCents = calculateFeeCents(amountCents, recipient.commissionPercent);
+    const commissionPercent = platformCommissionPercent();
+    const platformFeeCents = calculateFeeCents(amountCents, commissionPercent);
 
     const tip = await createTipRecord({
-      recipientId: recipient.id,
+      creatorId: creator.id,
       amountCents,
       platformFeeCents,
       payerEmail: input.payerEmail || null,
@@ -31,8 +44,9 @@ export async function POST(request: Request) {
     });
 
     const preference = await createMercadoPagoPreference({
-      recipient,
+      creator,
       tip,
+      commissionPercent,
       payerEmail: input.payerEmail
     });
 
@@ -44,6 +58,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       tipId: updatedTip.id,
+      preferenceId: preference.preferenceId,
       checkoutUrl: preference.checkoutUrl
     });
   } catch (error) {

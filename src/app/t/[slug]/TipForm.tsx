@@ -1,20 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CreditCard, Loader2 } from "lucide-react";
+import { ChevronLeft, Loader2 } from "lucide-react";
+import { MercadoPagoButton } from "@/components/MercadoPagoButton";
+import { MercadoPagoButtonSlot } from "@/components/MercadoPagoButtonSlot";
 import { DEFAULT_AMOUNTS } from "@/lib/money";
 
 type Props = {
   slug: string;
-  recipientName: string;
+  creatorName: string;
 };
 
-export function TipForm({ slug, recipientName }: Props) {
-  const [selectedAmount, setSelectedAmount] = useState(DEFAULT_AMOUNTS[1]);
+export function TipForm({ slug, creatorName }: Props) {
+  const [selectedAmount, setSelectedAmount] = useState(DEFAULT_AMOUNTS[3]);
   const [customAmount, setCustomAmount] = useState("");
   const [payerEmail, setPayerEmail] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const amount = useMemo(() => {
     const parsed = Number(customAmount);
@@ -28,14 +31,8 @@ export function TipForm({ slug, recipientName }: Props) {
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          slug,
-          amount,
-          payerEmail: payerEmail || null
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, amount, payerEmail: payerEmail || null })
       });
 
       const data = (await response.json()) as {
@@ -47,13 +44,36 @@ export function TipForm({ slug, recipientName }: Props) {
         throw new Error(data.error || "No se pudo iniciar el pago.");
       }
 
-      window.location.assign(data.checkoutUrl);
+      const isDemo = data.checkoutUrl.includes("/pago/demo");
+      if (isDemo) {
+        window.location.assign(data.checkoutUrl);
+        return;
+      }
+
+      setCheckoutUrl(data.checkoutUrl);
+      setIsLoading(false);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "No se pudo iniciar el pago.");
       setIsLoading(false);
     }
   }
 
+  // Step 2: show official-style MP button
+  if (checkoutUrl) {
+    return (
+      <div className="tip-body">
+        <button className="tip-back-link" onClick={() => { setCheckoutUrl(null); setError(""); }} type="button">
+          <ChevronLeft size={16} />
+          Cambiar monto
+        </button>
+        <MercadoPagoButton amount={amount} href={checkoutUrl}>
+          <MercadoPagoButtonSlot />
+        </MercadoPagoButton>
+      </div>
+    );
+  }
+
+  // Step 1: amount selector
   return (
     <div className="tip-body">
       <h2>Elegir monto</h2>
@@ -99,9 +119,14 @@ export function TipForm({ slug, recipientName }: Props) {
           />
         </div>
         {error ? <div className="message error">{error}</div> : null}
-        <button className="button primary" disabled={isLoading || amount < 100} onClick={submitTip} type="button">
-          {isLoading ? <Loader2 size={18} /> : <CreditCard size={18} />}
-          Pagar propina a {recipientName}
+        <button
+          className="button mp-pay test"
+          disabled={isLoading || amount < 100}
+          onClick={submitTip}
+          type="button"
+        >
+          {isLoading ? <Loader2 size={18} /> : null}
+          {isLoading ? "Generando pago..." : `Continuar con $${amount.toLocaleString("es-AR")}`}
         </button>
       </div>
     </div>

@@ -1,11 +1,11 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 
 export default async function AdminLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  await requireAdmin();
+  await requireUser();
 
   return children;
 }
