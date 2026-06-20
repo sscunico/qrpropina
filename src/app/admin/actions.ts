@@ -7,10 +7,12 @@ import { requireAdmin, requireUser } from "@/lib/auth";
 import {
   createCreatorRecord,
   createQrCodeRecord,
+  deleteCreatorRecord,
   deleteQrCodeRecord,
   getAppSettings,
   setCreatorActive,
   setMercadoPagoIntegrationVisible,
+  setTransferDiscountPercentValue,
   updateCreatorMercadoPagoAliasRecord,
   updateCreatorProfileRecord,
   updateCreatorRecord,
@@ -43,6 +45,10 @@ const qrSchema = z.object({
 
 const mercadoPagoAliasSchema = z.object({
   mpAlias: z.string().trim().min(1)
+});
+
+const transferDiscountSchema = z.object({
+  transferDiscountPercent: z.coerce.number().min(0).max(40)
 });
 
 async function requireQrAccess(creatorId: string) {
@@ -92,6 +98,15 @@ export async function updateCreator(id: string, formData: FormData) {
   revalidatePath(`/admin/creadores/${id}`);
 }
 
+export async function deleteCreator(id: string) {
+  await requireAdmin();
+
+  await deleteCreatorRecord(id);
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/creadores");
+}
+
 export async function updateCreatorProfile(id: string, formData: FormData) {
   const session = await requireUser();
   if (session.role !== "admin" && session.creatorId !== id) {
@@ -131,6 +146,18 @@ export async function setMercadoPagoIntegrationVisibility(isVisible: boolean) {
 
   revalidatePath("/");
   revalidatePath("/admin");
+  revalidatePath("/admin/ajustes");
+}
+
+export async function setTransferDiscountPercent(formData: FormData) {
+  await requireAdmin();
+
+  const parsed = transferDiscountSchema.parse(Object.fromEntries(formData));
+  await setTransferDiscountPercentValue(parsed.transferDiscountPercent);
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/ajustes");
+  revalidatePath("/admin/creadores");
 }
 
 export async function createCreatorQr(creatorId: string, formData: FormData) {

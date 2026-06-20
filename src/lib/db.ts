@@ -87,11 +87,12 @@ export type Notification = {
 
 export type AppSettings = {
   showMercadoPagoIntegration: boolean;
+  transferDiscountPercent: number;
   updatedAt: string | null;
 };
 
 type Db = {
-  schemaVersion: 8;
+  schemaVersion: 9;
   settings: AppSettings;
   users: User[];
   creators: Creator[];
@@ -171,6 +172,7 @@ function now() {
 function defaultSettings(timestamp = now()): AppSettings {
   return {
     showMercadoPagoIntegration: true,
+    transferDiscountPercent: 5,
     updatedAt: timestamp
   };
 }
@@ -179,7 +181,7 @@ function seedDb(): Db {
   const createdAt = now();
 
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     settings: defaultSettings(createdAt),
     users: [],
     creators: [
@@ -279,17 +281,28 @@ function normalizeTip(tip: LegacyTip): Tip {
   };
 }
 
+function normalizeTransferDiscountPercent(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 40) {
+    return 5;
+  }
+
+  return parsed;
+}
+
 function normalizeSettings(settings: Partial<AppSettings> | undefined, timestamp: string): AppSettings {
   return {
     showMercadoPagoIntegration: settings?.showMercadoPagoIntegration !== false,
+    transferDiscountPercent: normalizeTransferDiscountPercent(settings?.transferDiscountPercent),
     updatedAt: settings?.updatedAt || timestamp
   };
 }
 
 function normalizeDb(raw: LegacyDb): { db: Db; migrated: boolean } {
   let migrated =
-    raw.schemaVersion !== 8 ||
+    raw.schemaVersion !== 9 ||
     !raw.settings ||
+    typeof raw.settings.transferDiscountPercent !== "number" ||
     !raw.creators ||
     !raw.users ||
     !raw.qrCodes ||
@@ -331,7 +344,7 @@ function normalizeDb(raw: LegacyDb): { db: Db; migrated: boolean } {
   return {
     migrated,
     db: {
-      schemaVersion: 8,
+      schemaVersion: 9,
       settings: normalizeSettings(raw.settings, timestamp),
       users,
       creators: creators.map(normalizeCreator),
@@ -480,6 +493,14 @@ export async function getAppSettings() {
 export async function setMercadoPagoIntegrationVisible(showMercadoPagoIntegration: boolean) {
   return mutateDb((db) => {
     db.settings.showMercadoPagoIntegration = showMercadoPagoIntegration;
+    db.settings.updatedAt = now();
+    return db.settings;
+  });
+}
+
+export async function setTransferDiscountPercentValue(transferDiscountPercent: number) {
+  return mutateDb((db) => {
+    db.settings.transferDiscountPercent = normalizeTransferDiscountPercent(transferDiscountPercent);
     db.settings.updatedAt = now();
     return db.settings;
   });
@@ -670,7 +691,7 @@ export async function upsertGoogleUser(input: {
         db.creators.push(creator);
       } else {
         creator.ownerUserId = user.id;
-        creator.photoUrl = creator.photoUrl || input.picture || null;
+        creator.photoUrl = input.picture || creator.photoUrl || null;
         creator.updatedAt = timestamp;
       }
 
@@ -711,6 +732,32 @@ export async function updateCreatorRecord(
       commissionPercent: input.commissionPercent,
       updatedAt: now()
     });
+
+    return creator;
+  });
+}
+
+export async function deleteCreatorRecord(id: string) {
+  return mutateDb((db) => {
+    const creatorIndex = db.creators.findIndex((item) => item.id === id);
+    if (creatorIndex === -1) {
+      throw new Error("Creador no encontrado.");
+    }
+
+    const [creator] = db.creators.splice(creatorIndex, 1);
+    const tipIds = new Set(db.tips.filter((tip) => tip.creatorId === id).map((tip) => tip.id));
+
+    db.qrCodes = db.qrCodes.filter((qrCode) => qrCode.creatorId !== id);
+    db.tips = db.tips.filter((tip) => tip.creatorId !== id);
+    db.notifications = db.notifications.filter((notification) => notification.creatorId !== id);
+    db.paymentEvents = db.paymentEvents.filter((event) => !event.tipId || !tipIds.has(event.tipId));
+
+    for (const user of db.users) {
+      if (user.creatorId === id) {
+        user.creatorId = null;
+        user.updatedAt = now();
+      }
+    }
 
     return creator;
   });

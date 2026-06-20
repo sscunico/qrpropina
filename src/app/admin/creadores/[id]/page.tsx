@@ -25,7 +25,7 @@ import { MercadoPagoAlertButton } from "@/app/admin/creadores/[id]/MercadoPagoAl
 import { QrIdForm } from "@/app/admin/creadores/[id]/QrIdForm";
 import { getAdminSession } from "@/lib/auth";
 import { getAppSettings, getCreatorWithTips, isApprovedTip } from "@/lib/db";
-import { appUrl, platformCommissionPercent } from "@/lib/env";
+import { appUrl } from "@/lib/env";
 import { formatMoney } from "@/lib/money";
 import { sellerIsConnected } from "@/lib/mercadopago";
 import { qrDataUrl } from "@/lib/qrcode";
@@ -77,7 +77,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
   const publicUrl = `${appUrl()}/t/${creator.slug}`;
   const qrsHref = `${creatorHref}?section=qrs`;
   const perfilHref = `${creatorHref}?section=perfil`;
-  const commissionPercent = platformCommissionPercent();
+  const commissionPercent = settings.transferDiscountPercent;
   const showMercadoPagoIntegration = settings.showMercadoPagoIntegration;
   const activeSection =
     (requestedSection === "mercadopago" || requestedSection === "propinas") && !showMercadoPagoIntegration

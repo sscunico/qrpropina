@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
-  CreditCard,
   Database,
   DollarSign,
   Home,
@@ -14,7 +13,7 @@ import {
   Menu,
   Plus,
   QrCode,
-  Search,
+  ScrollText,
   Settings,
   User,
   Users,
@@ -63,28 +62,14 @@ function initials(value: string) {
     .toUpperCase();
 }
 
-function ProfileAvatar({
-  className,
-  label,
-  picture
-}: {
-  className: string;
-  label: string;
-  picture?: string;
-}) {
+function ProfileAvatar({ className, label, picture }: { className: string; label: string; picture?: string }) {
   const [failed, setFailed] = useState(false);
   const showImage = Boolean(picture && !failed);
 
   return (
     <div aria-label={label} className={className} title={label}>
       {showImage ? (
-        <img
-          alt=""
-          decoding="async"
-          referrerPolicy="no-referrer"
-          src={picture}
-          onError={() => setFailed(true)}
-        />
+        <img alt="" decoding="async" referrerPolicy="no-referrer" src={picture} onError={() => setFailed(true)} />
       ) : (
         <span>{initials(label)}</span>
       )}
@@ -96,18 +81,14 @@ function isTipRoute(pathname: string) {
   return pathname.startsWith("/t/") || pathname.startsWith("/q/");
 }
 
-export function AppNavigation({
-  appName,
-  session,
-  showMercadoPagoIntegration = true,
-  unreadCount = 0
-}: Props) {
+export function AppNavigation({ appName, session, showMercadoPagoIntegration = true, unreadCount = 0 }: Props) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
   if (isTipRoute(pathname)) {
     return null;
   }
+
   const [currentSection, setCurrentSection] = useState("qrs");
   const showDot = unreadCount > 0 && pathname !== "/admin/notificaciones";
   const profileLabel = session?.name || session?.email || "Invitado";
@@ -183,52 +164,41 @@ export function AppNavigation({
       {
         items: [
           { href: "/", label: "Inicio", icon: <Home size={18} />, match: "exact" },
-          {
-            href: "/admin",
-            label: "Panel de control",
-            icon: <LayoutDashboard size={18} />,
-            match: "startsWith"
-          },
-          { href: "/admin#nuevo", label: "Nuevo creador", icon: <Plus size={18} />, match: "none" },
-          { href: "/admin", label: "Explorar", icon: <Search size={18} />, match: "none" }
+          { href: "/admin", label: "Panel de control", icon: <LayoutDashboard size={18} />, match: "exact" },
+          { href: "/admin/creadores", label: "Creadores", icon: <Users size={18} />, match: "startsWith" },
+          { href: "/admin/creadores#nuevo", label: "Nuevo creador", icon: <Plus size={18} />, match: "none" }
         ]
       },
-      {
-        title: "Monetización",
-        items: [
-          { href: "/admin", label: "Creadores", icon: <Users size={18} />, match: "none" },
-          { href: "/admin", label: "Propinas", icon: <DollarSign size={18} />, match: "none" },
-          ...(showMercadoPagoIntegration
-            ? [{ href: "/admin", label: "Mercado Pago", icon: <Wallet size={18} />, match: "none" as const }]
-            : [])
-        ]
-      },
+      ...(showMercadoPagoIntegration
+        ? [
+            {
+              title: "Monetización",
+              items: [
+                { href: "/admin", label: "Propinas", icon: <DollarSign size={18} />, match: "none" as const },
+                { href: "/admin/ajustes", label: "Mercado Pago", icon: <Wallet size={18} />, match: "none" as const }
+              ]
+            }
+          ]
+        : []),
       {
         title: "Herramientas",
         items: [
-          { href: "/admin", label: "QR", icon: <QrCode size={18} />, match: "none" },
-          { href: "/admin#datos-locales", label: "Datos locales", icon: <Database size={18} />, match: "none" },
+          { href: "/admin/creadores", label: "QR", icon: <QrCode size={18} />, match: "startsWith" },
+          { href: "/admin/datos", label: "Datos", icon: <Database size={18} />, match: "startsWith" },
+          { href: "/admin/logs", label: "Logs", icon: <ScrollText size={18} />, match: "startsWith" },
           { href: "/admin/notificaciones", label: "Notificaciones", icon: <Bell size={18} />, match: "startsWith" }
         ]
       },
       {
         title: "Configuración",
-        items: [
-          { href: "/admin", label: "Pagos", icon: <CreditCard size={18} />, match: "none" },
-          { href: "/admin", label: "Ajustes", icon: <Settings size={18} />, match: "none" }
-        ]
+        items: [{ href: "/admin/ajustes", label: "Ajustes", icon: <Settings size={18} />, match: "startsWith" }]
       }
     ];
   }, [session, showMercadoPagoIntegration]);
 
   function isActive(item: MenuItem) {
-    if (item.match === "none") {
-      return false;
-    }
-
-    if (item.match === "exact") {
-      return pathname === item.href;
-    }
+    if (item.match === "none") return false;
+    if (item.match === "exact") return pathname === item.href;
 
     const [pathWithQuery] = item.href.split("#");
     const [path, query = ""] = pathWithQuery.split("?");
@@ -251,16 +221,12 @@ export function AppNavigation({
     <>
       <header className="topbar">
         <Link className="brand" href="/">
-          <span className="brand-mark">
-            <LogoMark className="brand-logo" />
-          </span>
+          <span className="brand-mark"><LogoMark className="brand-logo" /></span>
           <span>{appName}</span>
         </Link>
 
         <nav className="topnav" aria-label="Navegación principal">
-          <Link className={pathname === "/" ? "topnav-link active" : "topnav-link"} href="/">
-            Inicio
-          </Link>
+          <Link className={pathname === "/" ? "topnav-link active" : "topnav-link"} href="/">Inicio</Link>
           {session ? (
             <Link
               className={pathname.startsWith("/admin") ? "topnav-link active" : "topnav-link"}
@@ -274,41 +240,21 @@ export function AppNavigation({
         <div className="topbar-actions">
           {session ? (
             <>
-              {session.role === "admin" ? (
-                <button
-                  className="icon-button ghost bell-btn"
-                  onClick={() => setIsOpen(true)}
-                  title="Notificaciones"
-                  type="button"
-                >
+              <Link className="icon-button ghost bell-btn" href="/admin/notificaciones" title="Notificaciones">
+                <span className="bell-wrapper">
                   <Bell size={19} />
-                </button>
-              ) : (
-                <Link
-                  className="icon-button ghost bell-btn"
-                  href="/admin/notificaciones"
-                  title="Notificaciones"
-                >
-                  <span className="bell-wrapper">
-                    <Bell size={19} />
-                    {showDot ? <span className="bell-dot" /> : null}
-                  </span>
-                </Link>
-              )}
+                  {showDot ? <span className="bell-dot" /> : null}
+                </span>
+              </Link>
               <ProfileAvatar className="top-profile" label={profileLabel} picture={session.picture} />
             </>
           ) : (
             <>
-              <Link
-                className={pathname === "/login" ? "topbar-login active" : "topbar-login"}
-                href={googleLoginHref}
-              >
+              <Link className={pathname === "/login" ? "topbar-login active" : "topbar-login"} href={googleLoginHref}>
                 <GoogleIcon size={18} />
                 Iniciar sesión
               </Link>
-              <Link className="topbar-join" href={googleLoginHref}>
-                Unirse ahora
-              </Link>
+              <Link className="topbar-join" href={googleLoginHref}>Unirse ahora</Link>
             </>
           )}
           {session ? (
@@ -325,69 +271,48 @@ export function AppNavigation({
         </div>
       </header>
 
-
-{session ? <div className={isOpen ? "drawer-backdrop show" : "drawer-backdrop"} onClick={() => setIsOpen(false)} /> : null}
+      {session ? <div className={isOpen ? "drawer-backdrop show" : "drawer-backdrop"} onClick={() => setIsOpen(false)} /> : null}
       {session ? (
-      <aside
-        aria-label="Menu lateral"
-        aria-modal={isOpen}
-        className={isOpen ? "side-drawer show" : "side-drawer"}
-        role="dialog"
-      >
-        <div className="drawer-head drawer-head-plain">
-          <button className="icon-button ghost" onClick={() => setIsOpen(false)} title="Cerrar menú" type="button">
-            <X size={22} />
-          </button>
-        </div>
+        <aside aria-label="Menu lateral" aria-modal={isOpen} className={isOpen ? "side-drawer show" : "side-drawer"} role="dialog">
+          <div className="drawer-head drawer-head-plain">
+            <button className="icon-button ghost" onClick={() => setIsOpen(false)} title="Cerrar menú" type="button"><X size={22} /></button>
+          </div>
 
-        {session ? (
           <div className="drawer-profile">
-            <ProfileAvatar
-              className="drawer-profile-avatar"
-              label={profileLabel}
-              picture={session.picture}
-            />
+            <ProfileAvatar className="drawer-profile-avatar" label={profileLabel} picture={session.picture} />
             <div className="drawer-profile-meta">
               <strong>{profileLabel}</strong>
               <span>{session.email}</span>
             </div>
           </div>
-        ) : null}
 
-        <nav className="drawer-nav" aria-label="Menu de qrpropina">
-          {sections.map((section, sectionIndex) => (
-            <div className="drawer-section" key={section.title || sectionIndex}>
-              {section.title ? <p className="drawer-section-title">{section.title}</p> : null}
-              {section.items.map((item) => (
-                <Link
-                  className={isActive(item) ? "drawer-link active" : "drawer-link"}
-                  href={item.href}
-                  key={`${section.title || "main"}-${item.label}`}
-                  onClick={() => {
-                    const nextSection = getSectionFromHref(item.href);
-                    if (nextSection) {
-                      setCurrentSection(nextSection);
-                    }
-                    setIsOpen(false);
-                  }}
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          ))}
+          <nav className="drawer-nav" aria-label="Menu de qrpropina">
+            {sections.map((section, sectionIndex) => (
+              <div className="drawer-section" key={section.title || sectionIndex}>
+                {section.title ? <p className="drawer-section-title">{section.title}</p> : null}
+                {section.items.map((item) => (
+                  <Link
+                    className={isActive(item) ? "drawer-link active" : "drawer-link"}
+                    href={item.href}
+                    key={`${section.title || "main"}-${item.label}`}
+                    onClick={() => {
+                      const nextSection = getSectionFromHref(item.href);
+                      if (nextSection) setCurrentSection(nextSection);
+                      setIsOpen(false);
+                    }}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            ))}
 
-          {session ? (
             <form action="/api/auth/logout" className="drawer-logout" method="post">
-              <button className="drawer-link" type="submit">
-                <LogOut size={18} />
-                <span>Salir</span>
-              </button>
+              <button className="drawer-link" type="submit"><LogOut size={18} /><span>Salir</span></button>
             </form>
-          ) : null}
-        </nav>
-      </aside>
+          </nav>
+        </aside>
       ) : null}
     </>
   );

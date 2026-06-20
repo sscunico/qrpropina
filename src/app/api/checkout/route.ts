@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createTipRecord, getCreatorBySlug, updateTipRecord } from "@/lib/db";
-import { isDemoCheckoutEnabled, platformCommissionPercent } from "@/lib/env";
+import { createTipRecord, getAppSettings, getCreatorBySlug, updateTipRecord } from "@/lib/db";
+import { isDemoCheckoutEnabled } from "@/lib/env";
 import { createMercadoPagoPreference, sellerIsConnected } from "@/lib/mercadopago";
 import { calculateFeeCents, pesosToCents } from "@/lib/money";
 
@@ -32,7 +32,8 @@ export async function POST(request: Request) {
     }
 
     const amountCents = pesosToCents(input.amount);
-    const commissionPercent = platformCommissionPercent();
+    const settings = await getAppSettings();
+    const commissionPercent = settings.transferDiscountPercent;
     const platformFeeCents = calculateFeeCents(amountCents, commissionPercent);
 
     const tip = await createTipRecord({
