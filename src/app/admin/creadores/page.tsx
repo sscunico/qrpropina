@@ -1,7 +1,8 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BadgePercent, ChevronLeft, ChevronRight, ExternalLink, Plus, QrCode, Trash2, Wallet } from "lucide-react";
-import { createCreator, deleteCreator } from "@/app/admin/actions";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { createCreator } from "@/app/admin/actions";
+import { CreatorsGrid } from "@/app/admin/creadores/CreatorsGrid";
 import { getAdminSession } from "@/lib/auth";
 import { appUrl } from "@/lib/env";
 import { getAppSettings, isApprovedTip, listCreatorsWithRecentTips } from "@/lib/db";
@@ -40,6 +41,25 @@ export default async function AdminCreatorsPage({ searchParams }: Props) {
   const offset = (safePage - 1) * pageSize;
   const creators = allCreators.slice(offset, offset + pageSize);
   const commissionPercent = settings.transferDiscountPercent;
+  const creatorRows = creators.map((creator) => {
+    const publicUrl = `${appUrl()}/t/${creator.slug}`;
+    const approved = creator.tips.filter(isApprovedTip);
+    const received = approved.reduce((sum, tip) => sum + tip.amountCents, 0);
+    const label = [creator.role, creator.locationName].filter(Boolean).join(" - ") || "Creador";
+
+    return {
+      id: creator.id,
+      displayName: creator.displayName,
+      label,
+      photoUrl: creator.photoUrl,
+      publicUrl,
+      commissionPercent,
+      receivedLabel: formatMoney(received),
+      platformFeeLabel: formatMoney(approved.reduce((sum, tip) => sum + tip.platformFeeCents, 0)),
+      mercadoPagoConnected: sellerIsConnected(creator),
+      slug: creator.slug
+    };
+  });
 
   return (
     <main className="page">
@@ -69,70 +89,7 @@ export default async function AdminCreatorsPage({ searchParams }: Props) {
           <p className="muted">Todavía no hay creadores cargados.</p>
         ) : (
           <>
-            <div className="table-responsive">
-              <table className="table creators-table">
-                <thead>
-                  <tr>
-                    <th className="creator-avatar-heading"><span className="sr-only">Foto</span></th>
-                    <th>Creador</th>
-                    <th>Link público</th>
-                    <th>Comisión</th>
-                    <th>Aprobado</th>
-                    <th>Mercado Pago</th>
-                    <th className="table-actions-heading"><span className="sr-only">Acciones</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {creators.map((creator) => {
-                    const publicUrl = `${appUrl()}/t/${creator.slug}`;
-                    const approved = creator.tips.filter(isApprovedTip);
-                    const received = approved.reduce((sum, tip) => sum + tip.amountCents, 0);
-                    const creatorLabel = [creator.role, creator.locationName].filter(Boolean).join(" - ") || "Creador";
-                    const isMercadoPagoConnected = sellerIsConnected(creator);
-                    const deleteCreatorWithId = deleteCreator.bind(null, creator.id);
-
-                    return (
-                      <tr key={creator.id}>
-                        <td className="creator-avatar-cell">
-                          <img
-                            alt=""
-                            decoding="async"
-                            height={44}
-                            referrerPolicy="no-referrer"
-                            src={creator.photoUrl || "/default-profile.svg"}
-                            width={44}
-                          />
-                        </td>
-                        <td className="creator-name-cell">
-                          <strong>{creator.displayName}</strong>
-                          <span>{creatorLabel}</span>
-                        </td>
-                        <td><code className="table-url">{publicUrl}</code></td>
-                        <td><span className="pill"><BadgePercent size={14} />{commissionPercent}%</span></td>
-                        <td><strong>{formatMoney(received)}</strong></td>
-                        <td>
-                          <span className={isMercadoPagoConnected ? "pill ok" : "pill warn"}>
-                            <Wallet size={14} />
-                            {isMercadoPagoConnected ? "Integrado" : "Sin integrar"}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="table-actions">
-                            <Link className="icon-button primary" href={`/admin/creadores/${creator.id}`} title="Ver QR"><QrCode size={18} /></Link>
-                            <Link className="icon-button secondary" href={`/t/${creator.slug}`} title="Abrir página pública"><ExternalLink size={18} /></Link>
-                            <form action={deleteCreatorWithId}>
-                              <button className="icon-button danger" title="Borrar creador" type="submit">
-                                <Trash2 size={18} />
-                              </button>
-                            </form>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <CreatorsGrid rows={creatorRows} />
 
             <nav className="pagination" aria-label="Paginación de creadores">
               {safePage > 1 ? <Link className="button secondary" href={buildHref(safePage - 1, pageSize)}><ChevronLeft size={16} />Anterior</Link> : null}

@@ -20,6 +20,11 @@ export default async function HomePage() {
             <span>qrpropina</span>
             <Heart aria-label="Corazón" className="landing-title-heart" fill="currentColor" />
           </h1>
+          <img
+            alt="Medios de pago disponibles"
+            className="landing-cards-image"
+            src="/imagen_targetas.png"
+          />
           <p>
             Una forma simple y linda de recibir propinas: cada persona tiene su QR,
             el cliente escanea y paga desde el celular.
