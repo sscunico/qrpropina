@@ -72,6 +72,23 @@ select {
   animation: spin 800ms linear infinite;
 }
 
+.route-spinner-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  background: rgba(251, 248, 255, 0.46);
+  pointer-events: none;
+}
+
+.route-spinner-overlay .page-spinner {
+  width: 48px;
+  height: 48px;
+  border-width: 4px;
+  box-shadow: 0 16px 40px rgba(115, 87, 255, 0.16);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -1831,6 +1848,15 @@ h3 {
   max-width: 760px;
 }
 
+.settings-message {
+  margin-bottom: 14px;
+}
+
+.settings-message code {
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
 .settings-number-form {
   display: flex;
   align-items: flex-end;
@@ -2691,6 +2717,7 @@ h3 {
   .page-size-form,
   .page-size-form select,
   .page-size-form button,
+  .table-actions form,
   .table-actions,
   .table-actions .button,
   .table-actions .icon-button {

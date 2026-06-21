@@ -180,7 +180,7 @@ function defaultSettings(timestamp = now()): AppSettings {
 function seedDb(): Db {
   const createdAt = now();
 
-  return {
+  const db: Db = {
     schemaVersion: 9,
     settings: defaultSettings(createdAt),
     users: [],
@@ -241,6 +241,12 @@ function seedDb(): Db {
     paymentEvents: [],
     notifications: []
   };
+
+  for (const creator of db.creators) {
+    addDefaultQrCodeForCreator(db, creator.id, createdAt);
+  }
+
+  return db;
 }
 
 function normalizedEmail(email: string) {
@@ -341,19 +347,25 @@ function normalizeDb(raw: LegacyDb): { db: Db; migrated: boolean } {
     }
   }
 
-  return {
-    migrated,
-    db: {
-      schemaVersion: 9,
-      settings: normalizeSettings(raw.settings, timestamp),
-      users,
-      creators: creators.map(normalizeCreator),
-      qrCodes,
-      tips: Array.isArray(raw.tips) ? raw.tips.map(normalizeTip) : [],
-      paymentEvents: Array.isArray(raw.paymentEvents) ? raw.paymentEvents : [],
-      notifications: Array.isArray(raw.notifications) ? raw.notifications : []
-    }
+  const db: Db = {
+    schemaVersion: 9,
+    settings: normalizeSettings(raw.settings, timestamp),
+    users,
+    creators: creators.map(normalizeCreator),
+    qrCodes,
+    tips: Array.isArray(raw.tips) ? raw.tips.map(normalizeTip) : [],
+    paymentEvents: Array.isArray(raw.paymentEvents) ? raw.paymentEvents : [],
+    notifications: Array.isArray(raw.notifications) ? raw.notifications : []
   };
+
+  for (const creator of db.creators) {
+    if (!db.qrCodes.some((qrCode) => qrCode.creatorId === creator.id)) {
+      addDefaultQrCodeForCreator(db, creator.id, timestamp);
+      migrated = true;
+    }
+  }
+
+  return { migrated, db };
 }
 
 async function readDb(): Promise<Db> {
@@ -557,6 +569,21 @@ export async function getCreatorWithTips(id: string, take = 12): Promise<Creator
   };
 }
 
+function addDefaultQrCodeForCreator(db: Db, creatorId: string, timestamp: string) {
+  const qrId = validateQrId(creatorId);
+  if (qrIdExists(db, qrId)) {
+    return;
+  }
+
+  db.qrCodes.push({
+    id: crypto.randomUUID(),
+    creatorId,
+    qrId,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  });
+}
+
 export async function createCreatorRecord(input: {
   displayName: string;
   slug: string;
@@ -598,6 +625,7 @@ export async function createCreatorRecord(input: {
     };
 
     db.creators.push(creator);
+    addDefaultQrCodeForCreator(db, creator.id, timestamp);
     return creator;
   });
 }
@@ -689,6 +717,7 @@ export async function upsertGoogleUser(input: {
           updatedAt: timestamp
         };
         db.creators.push(creator);
+        addDefaultQrCodeForCreator(db, creator.id, timestamp);
       } else {
         creator.ownerUserId = user.id;
         creator.photoUrl = input.picture || creator.photoUrl || null;

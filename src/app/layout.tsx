@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Nunito_Sans } from "next/font/google";
 import { AppNavigation } from "@/components/AppNavigation";
 import { LegalFooter } from "@/components/LegalFooter";
+import { RouteChangeSpinner } from "@/components/RouteChangeSpinner";
 import { getAdminSession } from "@/lib/auth";
 import { countUnreadNotificationsForCreator, getAppSettings } from "@/lib/db";
 import { appName } from "@/lib/env";
@@ -35,6 +36,7 @@ export default async function RootLayout({
     <html lang="es-AR" className={nunitoSans.variable}>
       <body>
         <div className="app-shell">
+          <RouteChangeSpinner />
           <AppNavigation
             appName={appName()}
             showMercadoPagoIntegration={settings.showMercadoPagoIntegration}

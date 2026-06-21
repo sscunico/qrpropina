@@ -183,7 +183,6 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
       {
         title: "Herramientas",
         items: [
-          { href: "/admin/creadores", label: "QR", icon: <QrCode size={18} />, match: "startsWith" },
           { href: "/admin/datos", label: "Datos", icon: <Database size={18} />, match: "startsWith" },
           { href: "/admin/logs", label: "Logs", icon: <ScrollText size={18} />, match: "startsWith" },
           { href: "/admin/notificaciones", label: "Notificaciones", icon: <Bell size={18} />, match: "startsWith" }

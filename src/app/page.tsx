@@ -41,9 +41,6 @@ export default async function HomePage() {
                 </Link>
               </div>
             ) : null}
-            <div className="landing-payment-badge">
-              <img src="/mp-logo.svg" alt="Mercado Pago" />
-            </div>
           </div>
         </div>
       </section>

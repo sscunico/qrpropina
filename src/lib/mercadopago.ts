@@ -30,7 +30,7 @@ type MercadoPagoOAuthState = {
 
 type MercadoPagoOAuthCookie = {
   state: string;
-  codeVerifier: string;
+  codeVerifier?: string | null;
   exp: number;
 };
 
@@ -215,14 +215,34 @@ function createCodeVerifier() {
   return crypto.randomBytes(64).toString("base64url");
 }
 
-export function buildOAuthRequest(creatorId: string) {
-  const clientId = process.env.MERCADOPAGO_CLIENT_ID;
-  if (!clientId) {
-    throw new Error("MERCADOPAGO_CLIENT_ID is missing.");
+function useMercadoPagoPkce() {
+  return process.env.MERCADOPAGO_OAUTH_USE_PKCE === "true";
+}
+
+function cleanEnv(value: string | undefined) {
+  return value?.trim() || "";
+}
+
+function mercadoPagoOAuthCredentials() {
+  const clientId = cleanEnv(process.env.MERCADOPAGO_CLIENT_ID);
+  const clientSecret = cleanEnv(process.env.MERCADOPAGO_CLIENT_SECRET);
+  const missing = [
+    !clientId ? "MERCADOPAGO_CLIENT_ID" : null,
+    !clientSecret ? "MERCADOPAGO_CLIENT_SECRET" : null
+  ].filter(Boolean);
+
+  if (missing.length > 0) {
+    throw new Error(`Falta configurar ${missing.join(" y ")} para conectar Mercado Pago por OAuth.`);
   }
 
+  return { clientId, clientSecret };
+}
+
+export function buildOAuthRequest(creatorId: string) {
+  const { clientId } = mercadoPagoOAuthCredentials();
   const redirectUri = `${appUrl()}/api/mercadopago/oauth/callback`;
-  const codeVerifier = createCodeVerifier();
+  const usePkce = useMercadoPagoPkce();
+  const codeVerifier = usePkce ? createCodeVerifier() : null;
   const state = signJson({
     creatorId,
     nonce: crypto.randomUUID(),
@@ -234,8 +254,11 @@ export function buildOAuthRequest(creatorId: string) {
   url.searchParams.set("platform_id", "mp");
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
-  url.searchParams.set("code_challenge", base64UrlSha256(codeVerifier));
-  url.searchParams.set("code_challenge_method", "S256");
+
+  if (codeVerifier) {
+    url.searchParams.set("code_challenge", base64UrlSha256(codeVerifier));
+    url.searchParams.set("code_challenge_method", "S256");
+  }
 
   return {
     url: url.toString(),
@@ -244,10 +267,10 @@ export function buildOAuthRequest(creatorId: string) {
   };
 }
 
-export function createOAuthCookieValue(input: { state: string; codeVerifier: string }) {
+export function createOAuthCookieValue(input: { state: string; codeVerifier?: string | null }) {
   return signJson({
     state: input.state,
-    codeVerifier: input.codeVerifier,
+    codeVerifier: input.codeVerifier || null,
     exp: Date.now() + OAUTH_TTL_MS
   });
 }
@@ -257,7 +280,7 @@ function parseOAuthCookie(value: string | undefined | null) {
   if (
     !parsed ||
     typeof parsed.state !== "string" ||
-    typeof parsed.codeVerifier !== "string" ||
+    (typeof parsed.codeVerifier !== "string" && parsed.codeVerifier !== null && parsed.codeVerifier !== undefined) ||
     typeof parsed.exp !== "number" ||
     parsed.exp < Date.now()
   ) {
@@ -267,23 +290,20 @@ function parseOAuthCookie(value: string | undefined | null) {
   return parsed;
 }
 
-export async function exchangeOAuthCode(code: string, codeVerifier: string) {
-  const clientId = process.env.MERCADOPAGO_CLIENT_ID;
-  const clientSecret = process.env.MERCADOPAGO_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    throw new Error("Mercado Pago OAuth credentials are missing.");
-  }
-
+export async function exchangeOAuthCode(code: string, codeVerifier?: string | null) {
+  const { clientId, clientSecret } = mercadoPagoOAuthCredentials();
   const redirectUri = `${appUrl()}/api/mercadopago/oauth/callback`;
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     client_id: clientId,
     client_secret: clientSecret,
     code,
-    code_verifier: codeVerifier,
     redirect_uri: redirectUri
   });
+
+  if (codeVerifier) {
+    body.set("code_verifier", codeVerifier);
+  }
 
   const response = await fetch(`${mercadoPagoApiBaseUrl()}/oauth/token`, {
     method: "POST",
@@ -295,7 +315,9 @@ export async function exchangeOAuthCode(code: string, codeVerifier: string) {
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(`OAuth token exchange failed ${response.status}: ${message}`);
+    throw new Error(
+      `Mercado Pago rechazó la conexión OAuth (${response.status}). Revisá que el Redirect URL configurado en Mercado Pago sea ${redirectUri}. Detalle: ${message}`
+    );
   }
 
   const data = (await response.json()) as {

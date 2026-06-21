@@ -4,8 +4,16 @@ import { setMercadoPagoIntegrationVisibility, setTransferDiscountPercent } from 
 import { PercentStepper } from "@/components/PercentStepper";
 import { getAdminSession } from "@/lib/auth";
 import { getAppSettings } from "@/lib/db";
+import { appUrl } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
+
+function missingMercadoPagoOAuthVars() {
+  return [
+    !process.env.MERCADOPAGO_CLIENT_ID?.trim() ? "MERCADOPAGO_CLIENT_ID" : null,
+    !process.env.MERCADOPAGO_CLIENT_SECRET?.trim() ? "MERCADOPAGO_CLIENT_SECRET" : null
+  ].filter(Boolean);
+}
 
 export default async function AdminSettingsPage() {
   const session = await getAdminSession();
@@ -15,6 +23,8 @@ export default async function AdminSettingsPage() {
 
   const settings = await getAppSettings();
   const showMercadoPagoIntegration = settings.showMercadoPagoIntegration;
+  const missingOAuthVars = missingMercadoPagoOAuthVars();
+  const mercadoPagoRedirectUrl = `${appUrl()}/api/mercadopago/oauth/callback`;
   const toggleMercadoPagoIntegration = setMercadoPagoIntegrationVisibility.bind(null, !showMercadoPagoIntegration);
 
   return (
@@ -40,6 +50,16 @@ export default async function AdminSettingsPage() {
               {showMercadoPagoIntegration ? "Visible" : "Oculto"}
             </span>
           </div>
+
+          {missingOAuthVars.length > 0 ? (
+            <div className="message error settings-message">
+              Falta configurar {missingOAuthVars.join(" y ")} para conectar Mercado Pago por OAuth.
+            </div>
+          ) : (
+            <div className="message success settings-message">
+              OAuth configurado. Redirect URL esperado: <code>{mercadoPagoRedirectUrl}</code>
+            </div>
+          )}
 
           <form action={toggleMercadoPagoIntegration} className="admin-switch-form">
             <button aria-pressed={showMercadoPagoIntegration} className={showMercadoPagoIntegration ? "switch-control checked" : "switch-control"} type="submit">

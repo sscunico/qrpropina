@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { BadgePercent, ExternalLink, QrCode, Trash2 } from "lucide-react";
@@ -60,10 +61,14 @@ function moveItem(items: ColumnKey[], from: ColumnKey, to: ColumnKey) {
 }
 
 export function CreatorsGrid({ rows }: CreatorsGridProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [order, setOrder] = useState<ColumnKey[]>(DEFAULT_ORDER);
   const [draggingColumn, setDraggingColumn] = useState<ColumnKey | null>(null);
   const [overColumn, setOverColumn] = useState<ColumnKey | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const queryString = searchParams.toString();
+  const currentUrl = queryString ? `${pathname}?${queryString}` : pathname;
 
   useEffect(() => {
     try {
@@ -151,6 +156,7 @@ export function CreatorsGrid({ rows }: CreatorsGridProps) {
                 <Link className="icon-button secondary" href={`/t/${row.slug}`} title="Abrir página pública"><ExternalLink size={18} /></Link>
                 <form action="/api/admin/creadores/delete" method="post">
                   <input name="creatorId" type="hidden" value={row.id} />
+                  <input name="next" type="hidden" value={currentUrl} />
                   <button className="icon-button danger" title="Borrar creador" type="submit">
                     <Trash2 size={18} />
                   </button>
@@ -161,7 +167,7 @@ export function CreatorsGrid({ rows }: CreatorsGridProps) {
         }
       }
     }),
-    []
+    [currentUrl]
   );
 
   function handleDrop(target: ColumnKey) {
