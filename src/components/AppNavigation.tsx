@@ -165,8 +165,7 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
         items: [
           { href: "/", label: "Inicio", icon: <Home size={18} />, match: "exact" },
           { href: "/admin", label: "Panel de control", icon: <LayoutDashboard size={18} />, match: "exact" },
-          { href: "/admin/creadores", label: "Creadores", icon: <Users size={18} />, match: "startsWith" },
-          { href: "/admin/creadores#nuevo", label: "Nuevo creador", icon: <Plus size={18} />, match: "none" }
+          { href: "/admin/creadores", label: "Creadores", icon: <Users size={18} />, match: "startsWith" }
         ]
       },
       ...(showMercadoPagoIntegration

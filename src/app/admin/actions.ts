@@ -5,11 +5,14 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import {
+  ADMIN_NOTIFICATIONS_ID,
   createCreatorRecord,
+  createNotificationRecord,
   createQrCodeRecord,
   deleteCreatorRecord,
   deleteQrCodeRecord,
   getAppSettings,
+  getCreatorWithTips,
   setCreatorActive,
   setMercadoPagoIntegrationVisible,
   setTransferDiscountPercentValue,
@@ -18,6 +21,8 @@ import {
   updateCreatorRecord,
   updateQrCodeRecord
 } from "@/lib/db";
+import { qrDataUrl } from "@/lib/qrcode";
+import { appUrl } from "@/lib/env";
 
 const creatorSchema = z.object({
   displayName: z.string().trim().min(2),
@@ -163,15 +168,31 @@ export async function setTransferDiscountPercent(formData: FormData) {
 export async function createCreatorQr(creatorId: string, formData: FormData) {
   await requireQrAccess(creatorId);
 
+  let qrId: string;
   try {
     const parsed = qrSchema.parse(Object.fromEntries(formData));
-    await createQrCodeRecord({
-      creatorId,
-      qrId: parsed.qrId
-    });
+    qrId = parsed.qrId;
+    await createQrCodeRecord({ creatorId, qrId });
   } catch (error) {
     console.error(error instanceof Error ? error.message : "No se pudo crear el QR.");
     return;
+  }
+
+  try {
+    const creator = await getCreatorWithTips(creatorId, 0);
+    if (creator) {
+      const qrUrl = `${appUrl()}/q/${qrId}`;
+      const imageUrl = await qrDataUrl(qrUrl);
+      await createNotificationRecord({
+        creatorId: ADMIN_NOTIFICATIONS_ID,
+        title: `${creator.displayName} creó un nuevo QR`,
+        body: qrId,
+        photoUrl: creator.photoUrl,
+        imageUrl
+      });
+    }
+  } catch {
+    // notificación no crítica, no interrumpimos el flujo
   }
 
   revalidatePath(`/admin/creadores/${creatorId}`);

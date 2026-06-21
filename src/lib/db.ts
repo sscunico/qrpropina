@@ -79,11 +79,15 @@ export type Notification = {
   creatorId: string;
   title: string;
   body: string | null;
+  photoUrl?: string | null;
+  imageUrl?: string | null;
   isRead: boolean;
   isVisible: boolean;
   createdAt: string;
   updatedAt: string;
 };
+
+export const ADMIN_NOTIFICATIONS_ID = "__admin__";
 
 export type AppSettings = {
   showMercadoPagoIntegration: boolean;
@@ -664,7 +668,9 @@ export async function upsertGoogleUser(input: {
     const role: UserRole = emailIsAdmin(email) ? "admin" : "creator";
     let user = db.users.find((item) => normalizedEmail(item.email) === email);
 
+    let isNewUser = false;
     if (!user) {
+      isNewUser = true;
       user = {
         id: crypto.randomUUID(),
         email,
@@ -729,7 +735,7 @@ export async function upsertGoogleUser(input: {
       user.creatorId = null;
     }
 
-    return { user };
+    return { user, isNewUser };
   });
 }
 
@@ -1246,6 +1252,8 @@ export async function createNotificationRecord(input: {
   creatorId: string;
   title: string;
   body?: string | null;
+  photoUrl?: string | null;
+  imageUrl?: string | null;
 }) {
   return mutateDb((db) => {
     const timestamp = now();
@@ -1254,6 +1262,8 @@ export async function createNotificationRecord(input: {
       creatorId: input.creatorId,
       title: input.title,
       body: input.body || null,
+      photoUrl: input.photoUrl || null,
+      imageUrl: input.imageUrl || null,
       isRead: false,
       isVisible: true,
       createdAt: timestamp,

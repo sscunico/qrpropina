@@ -4,7 +4,7 @@ import { AppNavigation } from "@/components/AppNavigation";
 import { LegalFooter } from "@/components/LegalFooter";
 import { RouteChangeSpinner } from "@/components/RouteChangeSpinner";
 import { getAdminSession } from "@/lib/auth";
-import { countUnreadNotificationsForCreator, getAppSettings } from "@/lib/db";
+import { ADMIN_NOTIFICATIONS_ID, countUnreadNotificationsForCreator, getAppSettings } from "@/lib/db";
 import { appName } from "@/lib/env";
 import "./globals.css";
 
@@ -26,8 +26,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getAdminSession();
-  const unreadCount =
-    session?.role === "creator" && session.creatorId
+  const unreadCount = session?.role === "admin"
+    ? await countUnreadNotificationsForCreator(ADMIN_NOTIFICATIONS_ID)
+    : session?.role === "creator" && session.creatorId
       ? await countUnreadNotificationsForCreator(session.creatorId)
       : 0;
   const settings = await getAppSettings();

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Bell } from "lucide-react";
 import { getAdminSession } from "@/lib/auth";
-import { listNotificationsForCreator } from "@/lib/db";
+import { ADMIN_NOTIFICATIONS_ID, listNotificationsForCreator } from "@/lib/db";
 import { MarkReadOnMount } from "./MarkReadOnMount";
 import { deleteNotificationAction } from "./actions";
 import { Trash2 } from "lucide-react";
@@ -22,9 +22,11 @@ export default async function NotificacionesPage({ searchParams }: Props) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10) || 1);
 
-  const creatorId = session.creatorId ?? null;
-  const { items, total, totalPages } = creatorId
-    ? await listNotificationsForCreator(creatorId, page)
+  const targetId =
+    session.role === "admin" ? ADMIN_NOTIFICATIONS_ID : (session.creatorId ?? null);
+
+  const { items, total, totalPages } = targetId
+    ? await listNotificationsForCreator(targetId, page)
     : { items: [], total: 0, totalPages: 1 };
 
   return (
@@ -62,8 +64,27 @@ export default async function NotificacionesPage({ searchParams }: Props) {
                 {items.map((n) => (
                   <tr className={n.isRead ? undefined : "notif-row-unread"} key={n.id}>
                     <td>
-                      <strong>{n.title}</strong>
-                      {n.body ? <p className="notif-body">{n.body}</p> : null}
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                        {n.photoUrl ? (
+                          <img
+                            alt=""
+                            referrerPolicy="no-referrer"
+                            src={n.photoUrl}
+                            style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", flexShrink: 0, marginTop: 2 }}
+                          />
+                        ) : null}
+                        <div style={{ flex: 1 }}>
+                          <strong>{n.title}</strong>
+                          {n.body ? <p className="notif-body">{n.body}</p> : null}
+                        </div>
+                        {n.imageUrl ? (
+                          <img
+                            alt="QR"
+                            src={n.imageUrl}
+                            style={{ width: 56, height: 56, borderRadius: 6, flexShrink: 0 }}
+                          />
+                        ) : null}
+                      </div>
                     </td>
                     <td className="muted notif-date">
                       {new Date(n.createdAt).toLocaleString("es-AR", {
@@ -77,6 +98,7 @@ export default async function NotificacionesPage({ searchParams }: Props) {
                     <td className="notif-actions">
                       <form action={deleteNotificationAction}>
                         <input name="id" type="hidden" value={n.id} />
+                        <input name="creatorId" type="hidden" value={targetId ?? ""} />
                         <button
                           className="icon-button ghost"
                           title="Eliminar notificación"

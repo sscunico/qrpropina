@@ -1,10 +1,11 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { BadgePercent, ExternalLink, QrCode, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BadgePercent, ExternalLink, QrCode, Trash2, X } from "lucide-react";
 import { DragScrollArea } from "@/components/DragScrollArea";
 
 type CreatorGridRow = {
@@ -63,12 +64,41 @@ function moveItem(items: ColumnKey[], from: ColumnKey, to: ColumnKey) {
 export function CreatorsGrid({ rows }: CreatorsGridProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [order, setOrder] = useState<ColumnKey[]>(DEFAULT_ORDER);
   const [draggingColumn, setDraggingColumn] = useState<ColumnKey | null>(null);
   const [overColumn, setOverColumn] = useState<ColumnKey | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [toast, setToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryString = searchParams.toString();
   const currentUrl = queryString ? `${pathname}?${queryString}` : pathname;
+
+  function showToast() {
+    setToast(true);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(false), 5000);
+  }
+
+  function dismissToast() {
+    setToast(false);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+  }
+
+  async function handleDeleteConfirm() {
+    if (!confirmId) return;
+    setDeleting(true);
+    const formData = new FormData();
+    formData.append("creatorId", confirmId);
+    formData.append("next", currentUrl);
+    await fetch("/api/admin/creadores/delete", { method: "POST", body: formData });
+    setConfirmId(null);
+    setDeleting(false);
+    router.refresh();
+    showToast();
+  }
 
   useEffect(() => {
     try {
@@ -154,13 +184,9 @@ export function CreatorsGrid({ rows }: CreatorsGridProps) {
               <div className="table-actions">
                 <Link className="icon-button primary" href={`/admin/creadores/${row.id}`} title="Ver QR"><QrCode size={18} /></Link>
                 <Link className="icon-button secondary" href={`/t/${row.slug}`} title="Abrir página pública"><ExternalLink size={18} /></Link>
-                <form action="/api/admin/creadores/delete" method="post">
-                  <input name="creatorId" type="hidden" value={row.id} />
-                  <input name="next" type="hidden" value={currentUrl} />
-                  <button className="icon-button danger" title="Borrar creador" type="submit">
-                    <Trash2 size={18} />
-                  </button>
-                </form>
+                <button className="icon-button danger" title="Borrar creador" type="button" onClick={() => setConfirmId(row.id)}>
+                  <Trash2 size={18} />
+                </button>
               </div>
             </td>
           );
@@ -179,6 +205,37 @@ export function CreatorsGrid({ rows }: CreatorsGridProps) {
   }
 
   return (
+    <div style={{ display: "contents" }}>
+    {confirmId && (
+      <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.45)", display: "grid", placeItems: "center" }}>
+        <div style={{ background: "var(--surface)", borderRadius: "var(--radius)", padding: "28px 28px 24px", width: "min(380px, calc(100vw - 32px))", boxShadow: "0 20px 50px rgba(26,31,54,0.2)", position: "relative" }}>
+          <button
+            onClick={() => setConfirmId(null)}
+            style={{ position: "absolute", top: 12, right: 12, background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 4, display: "flex" }}
+            title="Cerrar"
+            type="button"
+          >
+            <X size={18} />
+          </button>
+          <h3 style={{ margin: "0 0 8px", fontSize: "1.05rem" }}>Eliminar creador</h3>
+          <p style={{ margin: "0 0 24px", color: "var(--muted)", fontSize: "0.95rem" }}>¿Está seguro que quiere eliminar este creador? Esta acción no se puede deshacer.</p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <button className="button secondary" disabled={deleting} onClick={() => setConfirmId(null)} type="button">No</button>
+            <button className="button danger" disabled={deleting} onClick={handleDeleteConfirm} type="button">{deleting ? "Eliminando…" : "Sí, eliminar"}</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {toast && (
+      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 300, minWidth: 260, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--radius)", padding: "14px 16px", boxShadow: "0 8px 32px rgba(26,31,54,0.16)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <span style={{ fontWeight: 700, color: "var(--text)" }}>Creador eliminado</span>
+        <button onClick={dismissToast} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 2, display: "flex" }} title="Cerrar" type="button">
+          <X size={16} />
+        </button>
+      </div>
+    )}
+
     <DragScrollArea ariaLabel="Tabla de creadores" className="table-responsive creators-table-scroll">
       <table className="table creators-table">
         <thead>
@@ -227,5 +284,6 @@ export function CreatorsGrid({ rows }: CreatorsGridProps) {
         </tbody>
       </table>
     </DragScrollArea>
+    </div>
   );
 }
