@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { signInUser } from "@/lib/auth";
-import { upsertGoogleUser } from "@/lib/db";
+import { ADMIN_NOTIFICATIONS_ID, createNotificationRecord, upsertGoogleUser } from "@/lib/db";
 import { appUrl } from "@/lib/env";
 import {
   GOOGLE_OAUTH_STATE_COOKIE,
@@ -41,11 +41,20 @@ export async function GET(request: Request) {
       return appRedirect("/login?error=not_allowed");
     }
 
-    const { user } = await upsertGoogleUser({
+    const { user, isNewUser } = await upsertGoogleUser({
       email: profile.email,
       name: profile.name,
       picture: profile.picture
     });
+
+    if (isNewUser && user.role !== "admin") {
+      await createNotificationRecord({
+        creatorId: ADMIN_NOTIFICATIONS_ID,
+        title: "Nuevo usuario creado",
+        body: user.name || user.email,
+        photoUrl: user.picture
+      });
+    }
 
     await signInUser(user, {
       name: profile.name,
