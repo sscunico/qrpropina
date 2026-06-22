@@ -1727,6 +1727,14 @@ h3 {
   opacity: 0.85;
 }
 
+.mp-connect-button img {
+  display: block;
+  width: auto;
+  height: 26px;
+  max-width: 96px;
+  object-fit: contain;
+}
+
 /* Pantalla de pago (step 2) */
 .tip-pay-amount {
   margin: 0 0 20px;

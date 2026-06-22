@@ -506,6 +506,50 @@ export async function getAppSettings() {
   return db.settings;
 }
 
+function latestTimestamp(values: Array<string | null | undefined>) {
+  return values.filter(Boolean).sort().at(-1) || "";
+}
+
+export async function getActivityVersionForSession(input: {
+  role: UserRole;
+  creatorId?: string | null;
+}) {
+  const db = await readDb();
+  const isCreator = input.role === "creator" && Boolean(input.creatorId);
+  const notificationTarget = isCreator ? input.creatorId : ADMIN_NOTIFICATIONS_ID;
+  const creators = isCreator
+    ? db.creators.filter((creator) => creator.id === input.creatorId)
+    : db.creators;
+  const creatorIds = new Set(creators.map((creator) => creator.id));
+  const qrCodes = isCreator
+    ? db.qrCodes.filter((qrCode) => creatorIds.has(qrCode.creatorId))
+    : db.qrCodes;
+  const tips = isCreator
+    ? db.tips.filter((tip) => creatorIds.has(tip.creatorId))
+    : db.tips;
+  const notifications = db.notifications.filter((notification) => notification.creatorId === notificationTarget);
+  const latest = latestTimestamp([
+    db.settings.updatedAt,
+    ...creators.map((creator) => creator.updatedAt),
+    ...qrCodes.map((qrCode) => qrCode.updatedAt),
+    ...tips.map((tip) => tip.updatedAt),
+    ...notifications.map((notification) => notification.updatedAt),
+    ...(isCreator ? [] : db.users.map((user) => user.updatedAt)),
+    ...(isCreator ? [] : db.paymentEvents.map((event) => event.createdAt))
+  ]);
+  const unread = notifications.filter((notification) => notification.isVisible && !notification.isRead).length;
+
+  return [
+    latest,
+    `creators:${creators.length}`,
+    `qrs:${qrCodes.length}`,
+    `tips:${tips.length}`,
+    `notifications:${notifications.length}`,
+    `unread:${unread}`,
+    isCreator ? `creator:${input.creatorId}` : `users:${db.users.length}:events:${db.paymentEvents.length}`
+  ].join("|");
+}
+
 export async function setMercadoPagoIntegrationVisible(showMercadoPagoIntegration: boolean) {
   return mutateDb((db) => {
     db.settings.showMercadoPagoIntegration = showMercadoPagoIntegration;

@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Plus,
   QrCode,
   ScrollText,
   Settings,
@@ -173,8 +172,7 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
             {
               title: "Monetización",
               items: [
-                { href: "/admin", label: "Propinas", icon: <DollarSign size={18} />, match: "none" as const },
-                { href: "/admin/ajustes", label: "Mercado Pago", icon: <Wallet size={18} />, match: "none" as const }
+                { href: "/admin", label: "Propinas", icon: <DollarSign size={18} />, match: "none" as const }
               ]
             }
           ]

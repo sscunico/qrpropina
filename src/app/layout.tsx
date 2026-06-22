@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
 import { Nunito_Sans } from "next/font/google";
 import { AppNavigation } from "@/components/AppNavigation";
+import { AutoRefreshOnActivity } from "@/components/AutoRefreshOnActivity";
 import { LegalFooter } from "@/components/LegalFooter";
 import { RouteChangeSpinner } from "@/components/RouteChangeSpinner";
 import { getAdminSession } from "@/lib/auth";
-import { ADMIN_NOTIFICATIONS_ID, countUnreadNotificationsForCreator, getAppSettings } from "@/lib/db";
+import {
+  ADMIN_NOTIFICATIONS_ID,
+  countUnreadNotificationsForCreator,
+  getActivityVersionForSession,
+  getAppSettings
+} from "@/lib/db";
 import { appName } from "@/lib/env";
 import "./globals.css";
 
@@ -32,11 +38,18 @@ export default async function RootLayout({
       ? await countUnreadNotificationsForCreator(session.creatorId)
       : 0;
   const settings = await getAppSettings();
+  const activityVersion = session
+    ? await getActivityVersionForSession({
+        role: session.role,
+        creatorId: session.creatorId
+      })
+    : null;
 
   return (
     <html lang="es-AR" className={nunitoSans.variable}>
       <body>
         <div className="app-shell">
+          {activityVersion ? <AutoRefreshOnActivity initialVersion={activityVersion} /> : null}
           <RouteChangeSpinner />
           <AppNavigation
             appName={appName()}
