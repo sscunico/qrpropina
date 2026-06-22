@@ -11,8 +11,10 @@ import {
   createQrCodeRecord,
   deleteCreatorRecord,
   deleteQrCodeRecord,
+  disconnectCreatorMercadoPagoRecord,
   getAppSettings,
   getCreatorWithTips,
+  setColorOverrides,
   setCreatorActive,
   setMercadoPagoIntegrationVisible,
   setTransferDiscountPercentValue,
@@ -165,6 +167,35 @@ export async function setTransferDiscountPercent(formData: FormData) {
   revalidatePath("/admin/creadores");
 }
 
+const CSS_COLOR_VARS = [
+  "--background", "--surface", "--surface-strong", "--text", "--muted",
+  "--line", "--accent", "--accent-strong", "--mint", "--lavender",
+  "--coral", "--amber", "--danger"
+];
+
+export async function saveColorOverrides(formData: FormData) {
+  await requireAdmin();
+
+  const overrides: Record<string, string> = {};
+  for (const key of CSS_COLOR_VARS) {
+    const val = formData.get(key);
+    if (typeof val === "string" && val) {
+      overrides[key] = val;
+    }
+  }
+
+  await setColorOverrides(overrides);
+  revalidatePath("/");
+  revalidatePath("/admin/ajustes");
+}
+
+export async function resetColorOverrides() {
+  await requireAdmin();
+  await setColorOverrides({});
+  revalidatePath("/");
+  revalidatePath("/admin/ajustes");
+}
+
 export async function createCreatorQr(creatorId: string, formData: FormData) {
   await requireQrAccess(creatorId);
 
@@ -224,6 +255,16 @@ export async function deleteCreatorQr(creatorId: string, recordId: string) {
     recordId
   });
 
+  revalidatePath(`/admin/creadores/${creatorId}`);
+}
+
+export async function disconnectMercadoPago(creatorId: string) {
+  const session = await requireUser();
+  if (session.role !== "admin" && session.creatorId !== creatorId) {
+    redirect("/admin");
+  }
+
+  await disconnectCreatorMercadoPagoRecord(creatorId);
   revalidatePath(`/admin/creadores/${creatorId}`);
 }
 

@@ -23,7 +23,12 @@ const nunitoSans = Nunito_Sans({
 
 export const metadata: Metadata = {
   title: appName(),
-  description: "qrpropina: propinas por QR con Mercado Pago"
+  description: "qrpropina: propinas por QR con Mercado Pago",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/app-icon.png"
+  }
 };
 
 export default async function RootLayout({
@@ -45,8 +50,14 @@ export default async function RootLayout({
       })
     : null;
 
+  const colorEntries = Object.entries(settings.colorOverrides);
+  const colorStyle = colorEntries.length > 0
+    ? `:root { ${colorEntries.map(([k, v]) => `${k}: ${v};`).join(" ")} }`
+    : null;
+
   return (
     <html lang="es-AR" className={nunitoSans.variable}>
+      <head>{colorStyle ? <style dangerouslySetInnerHTML={{ __html: colorStyle }} /> : null}</head>
       <body>
         <div className="app-shell">
           {activityVersion ? <AutoRefreshOnActivity initialVersion={activityVersion} /> : null}

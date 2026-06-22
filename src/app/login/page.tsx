@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LockKeyhole, QrCode } from "lucide-react";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { getAdminSession, safeNext } from "@/lib/auth";
@@ -13,6 +14,11 @@ type Props = {
 
 export default async function LoginPage({ searchParams }: Props) {
   const params = await searchParams;
+
+  if (params.error === "oauth_state") {
+    redirect("/?loginError=oauth_state");
+  }
+
   const session = await getAdminSession();
   const next = safeNext(params.next);
   const googleConfigured = googleOAuthIsConfigured();

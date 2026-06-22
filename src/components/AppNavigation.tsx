@@ -83,19 +83,15 @@ function isTipRoute(pathname: string) {
 export function AppNavigation({ appName, session, showMercadoPagoIntegration = true, unreadCount = 0 }: Props) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-
-  if (isTipRoute(pathname)) {
-    return null;
-  }
-
   const [currentSection, setCurrentSection] = useState("qrs");
+  const hideNavigation = isTipRoute(pathname);
   const showDot = unreadCount > 0 && pathname !== "/admin/notificaciones";
   const profileLabel = session?.name || session?.email || "Invitado";
 
   useEffect(() => {
-    document.body.classList.toggle("drawer-open", isOpen);
+    document.body.classList.toggle("drawer-open", isOpen && !hideNavigation);
     return () => document.body.classList.remove("drawer-open");
-  }, [isOpen]);
+  }, [hideNavigation, isOpen]);
 
   useEffect(() => {
     setIsOpen(false);
@@ -149,7 +145,7 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
               {
                 title: "Monetización",
                 items: [
-                  { href: `${creatorHref}?section=propinas`, label: "Propinas", icon: <DollarSign size={18} />, match: "startsWith" as const },
+                  { href: "/admin/propinas", label: "Propinas", icon: <DollarSign size={18} />, match: "startsWith" as const },
                   { href: `${creatorHref}?section=mercadopago`, label: "Mercado Pago", icon: <Wallet size={18} />, match: "startsWith" as const },
                   { href: "/admin/notificaciones", label: "Notificaciones", icon: <Bell size={18} />, match: "startsWith" as const }
                 ]
@@ -172,7 +168,7 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
             {
               title: "Monetización",
               items: [
-                { href: "/admin", label: "Propinas", icon: <DollarSign size={18} />, match: "none" as const }
+                { href: "/admin/propinas", label: "Propinas", icon: <DollarSign size={18} />, match: "startsWith" as const }
               ]
             }
           ]
@@ -211,6 +207,10 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
     const [pathWithQuery] = href.split("#");
     const [, query = ""] = pathWithQuery.split("?");
     return new URLSearchParams(query).get("section");
+  }
+
+  if (hideNavigation) {
+    return null;
   }
 
   return (

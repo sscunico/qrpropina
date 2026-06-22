@@ -92,11 +92,12 @@ export const ADMIN_NOTIFICATIONS_ID = "__admin__";
 export type AppSettings = {
   showMercadoPagoIntegration: boolean;
   transferDiscountPercent: number;
+  colorOverrides: Record<string, string>;
   updatedAt: string | null;
 };
 
 type Db = {
-  schemaVersion: 9;
+  schemaVersion: 10;
   settings: AppSettings;
   users: User[];
   creators: Creator[];
@@ -177,6 +178,7 @@ function defaultSettings(timestamp = now()): AppSettings {
   return {
     showMercadoPagoIntegration: true,
     transferDiscountPercent: 5,
+    colorOverrides: {},
     updatedAt: timestamp
   };
 }
@@ -185,7 +187,7 @@ function seedDb(): Db {
   const createdAt = now();
 
   const db: Db = {
-    schemaVersion: 9,
+    schemaVersion: 10,
     settings: defaultSettings(createdAt),
     users: [],
     creators: [
@@ -304,13 +306,14 @@ function normalizeSettings(settings: Partial<AppSettings> | undefined, timestamp
   return {
     showMercadoPagoIntegration: settings?.showMercadoPagoIntegration !== false,
     transferDiscountPercent: normalizeTransferDiscountPercent(settings?.transferDiscountPercent),
+    colorOverrides: settings?.colorOverrides && typeof settings.colorOverrides === "object" ? settings.colorOverrides : {},
     updatedAt: settings?.updatedAt || timestamp
   };
 }
 
 function normalizeDb(raw: LegacyDb): { db: Db; migrated: boolean } {
   let migrated =
-    raw.schemaVersion !== 9 ||
+    raw.schemaVersion !== 10 ||
     !raw.settings ||
     typeof raw.settings.transferDiscountPercent !== "number" ||
     !raw.creators ||
@@ -352,7 +355,7 @@ function normalizeDb(raw: LegacyDb): { db: Db; migrated: boolean } {
   }
 
   const db: Db = {
-    schemaVersion: 9,
+    schemaVersion: 10,
     settings: normalizeSettings(raw.settings, timestamp),
     users,
     creators: creators.map(normalizeCreator),
@@ -610,6 +613,15 @@ export async function getCreatorWithTips(id: string, take = 12): Promise<Creator
     return null;
   }
 
+  if (!db.qrCodes.some((qrCode) => qrCode.creatorId === id)) {
+    await mutateDb((nextDb) => {
+      if (nextDb.creators.some((item) => item.id === id)) {
+        addDefaultQrCodeForCreator(nextDb, id, now());
+      }
+    });
+    return getCreatorWithTips(id, take);
+  }
+
   return {
     ...creator,
     qrCodes: sortNewest(db.qrCodes.filter((qrCode) => qrCode.creatorId === id)),
@@ -618,9 +630,17 @@ export async function getCreatorWithTips(id: string, take = 12): Promise<Creator
 }
 
 function addDefaultQrCodeForCreator(db: Db, creatorId: string, timestamp: string) {
-  const qrId = validateQrId(creatorId);
-  if (qrIdExists(db, qrId)) {
+  if (db.qrCodes.some((qrCode) => qrCode.creatorId === creatorId)) {
     return;
+  }
+
+  const baseQrId = validateQrId(creatorId);
+  let qrId = baseQrId;
+  let index = 2;
+
+  while (qrIdExists(db, qrId)) {
+    qrId = `${baseQrId}-${index}`;
+    index += 1;
   }
 
   db.qrCodes.push({
@@ -772,6 +792,7 @@ export async function upsertGoogleUser(input: {
         creator.ownerUserId = user.id;
         creator.photoUrl = input.picture || creator.photoUrl || null;
         creator.updatedAt = timestamp;
+        addDefaultQrCodeForCreator(db, creator.id, timestamp);
       }
 
       user.creatorId = creator.id;
@@ -1135,6 +1156,29 @@ export async function connectCreatorMercadoPago(
   });
 }
 
+export async function disconnectCreatorMercadoPagoRecord(id: string) {
+  return mutateDb((db) => {
+    const creator = db.creators.find((item) => item.id === id);
+    if (!creator) {
+      throw new Error("Creador no encontrado.");
+    }
+
+    creator.mpUserId = null;
+    creator.mpNickname = null;
+    creator.mpEmail = null;
+    creator.mpSiteId = null;
+    creator.mpFirstName = null;
+    creator.mpLastName = null;
+    creator.mpCountryId = null;
+    creator.mpPermalink = null;
+    creator.mpAccessToken = null;
+    creator.mpRefreshToken = null;
+    creator.mpTokenExpiresAt = null;
+    creator.updatedAt = now();
+    return creator;
+  });
+}
+
 export async function createTipRecord(input: {
   creatorId: string;
   amountCents: number;
@@ -1290,6 +1334,48 @@ export async function markNotificationsReadForCreator(creatorId: string) {
     }
     return count;
   });
+}
+
+export async function setColorOverrides(overrides: Record<string, string>) {
+  return mutateDb((db) => {
+    db.settings.colorOverrides = overrides;
+    db.settings.updatedAt = now();
+    return db.settings;
+  });
+}
+
+export async function listApprovedTipsWithCreators(
+  page = 1,
+  pageSize = 30
+): Promise<{ items: TipWithCreator[]; total: number; totalPages: number }> {
+  const db = await readDb();
+  const all = sortNewest(db.tips.filter(isApprovedTip))
+    .map((tip) => {
+      const creator = db.creators.find((c) => c.id === tip.creatorId);
+      return creator ? { ...tip, creator } : null;
+    })
+    .filter((t): t is TipWithCreator => t !== null);
+  const total = all.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const offset = (safePage - 1) * pageSize;
+  return { items: all.slice(offset, offset + pageSize), total, totalPages };
+}
+
+export async function listApprovedTipsForCreator(
+  creatorId: string,
+  page = 1,
+  pageSize = 30
+): Promise<{ items: Tip[]; total: number; totalPages: number }> {
+  const db = await readDb();
+  const all = sortNewest(
+    db.tips.filter((tip) => tip.creatorId === creatorId && isApprovedTip(tip))
+  );
+  const total = all.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const offset = (safePage - 1) * pageSize;
+  return { items: all.slice(offset, offset + pageSize), total, totalPages };
 }
 
 export async function createNotificationRecord(input: {

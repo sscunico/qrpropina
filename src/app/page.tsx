@@ -1,18 +1,27 @@
 ﻿import Link from "next/link";
 import { BadgePercent, Heart, HeartHandshake, QrCode, Smartphone, WalletCards } from "lucide-react";
 import { GoogleIcon } from "@/components/GoogleIcon";
+import { LoginErrorModal } from "@/components/LoginErrorModal";
 import { getAdminSession } from "@/lib/auth";
 
 const googleLoginHref = "/api/auth/google/start?next=%2Fadmin";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+type Props = {
+  searchParams: Promise<{
+    loginError?: string;
+  }>;
+};
+
+export default async function HomePage({ searchParams }: Props) {
+  const params = await searchParams;
   const session = await getAdminSession();
   const showAuthActions = !session;
 
   return (
     <main>
+      <LoginErrorModal error={params.loginError} />
       <section className="landing-hero">
         <div className="landing-content">
           <p className="landing-eyebrow">Propinas digitales por QR</p>

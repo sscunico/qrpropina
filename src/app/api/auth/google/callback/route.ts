@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
   const parsedState = readGoogleOAuthState(state, storedState);
   if (!code || !parsedState) {
-    return appRedirect("/login?error=oauth_state");
+    return appRedirect("/?loginError=oauth_state");
   }
 
   try {

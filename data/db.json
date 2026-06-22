@@ -1,9 +1,10 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "settings": {
-    "showMercadoPagoIntegration": false,
+    "showMercadoPagoIntegration": true,
     "transferDiscountPercent": 5,
-    "updatedAt": "2026-06-19T01:28:12.490Z"
+    "colorOverrides": {},
+    "updatedAt": "2026-06-22T21:13:04.096Z"
   },
   "users": [
     {
@@ -14,8 +15,8 @@
       "role": "admin",
       "creatorId": null,
       "createdAt": "2026-06-13T14:39:29.977Z",
-      "updatedAt": "2026-06-19T22:10:19.875Z",
-      "lastLoginAt": "2026-06-19T22:10:19.875Z"
+      "updatedAt": "2026-06-22T14:19:05.933Z",
+      "lastLoginAt": "2026-06-22T14:19:05.933Z"
     },
     {
       "id": "68f092a7-cac2-470f-a09c-05f0046e1088",
@@ -25,8 +26,8 @@
       "role": "creator",
       "creatorId": "f6b03af1-cd50-40d2-8ad5-84dec0594b13",
       "createdAt": "2026-06-13T14:54:05.462Z",
-      "updatedAt": "2026-06-21T22:24:55.001Z",
-      "lastLoginAt": "2026-06-21T22:24:55.001Z"
+      "updatedAt": "2026-06-22T20:58:42.502Z",
+      "lastLoginAt": "2026-06-22T20:58:42.502Z"
     }
   ],
   "creators": [
@@ -53,7 +54,7 @@
       "mpTokenExpiresAt": null,
       "isActive": true,
       "createdAt": "2026-06-21T22:24:30.877Z",
-      "updatedAt": "2026-06-21T22:24:55.001Z"
+      "updatedAt": "2026-06-22T20:58:42.502Z"
     }
   ],
   "qrCodes": [

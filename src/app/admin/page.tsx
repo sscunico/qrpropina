@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Bell, Database, Settings, Users } from "lucide-react";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import { getAdminSession } from "@/lib/auth";
 import { aggregateTips, listCreatorsWithRecentTips } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
@@ -29,10 +30,22 @@ export default async function AdminPage() {
       </section>
 
       <section className="stats">
-        <div className="stat"><span className="muted">Creadores</span><strong>{creators.length}</strong></div>
-        <div className="stat"><span className="muted">Propinas aprobadas</span><strong>{totals.count}</strong></div>
-        <div className="stat"><span className="muted">Volumen aprobado</span><strong>{formatMoney(totals.amountCents)}</strong></div>
-        <div className="stat"><span className="muted">Comisión cobrada</span><strong>{formatMoney(totals.platformFeeCents)}</strong></div>
+        <div className="stat">
+          <span className="muted">Creadores <InfoTooltip text="Total de creadores registrados en la plataforma." position="bottom" /></span>
+          <strong>{creators.length}</strong>
+        </div>
+        <div className="stat">
+          <span className="muted">Propinas aprobadas <InfoTooltip text="Cantidad de pagos con estado aprobado por Mercado Pago." position="bottom" /></span>
+          <strong>{totals.count}</strong>
+        </div>
+        <div className="stat">
+          <span className="muted">Volumen aprobado <InfoTooltip text="Suma total de todas las propinas aprobadas, antes de descontar comisiones." position="bottom" /></span>
+          <strong>{formatMoney(totals.amountCents)}</strong>
+        </div>
+        <div className="stat">
+          <span className="muted">Comisión cobrada <InfoTooltip text="Total retenido por la plataforma en concepto de comisión sobre propinas aprobadas." position="bottom" /></span>
+          <strong>{formatMoney(totals.platformFeeCents)}</strong>
+        </div>
       </section>
 
       <section className="dashboard-grid">

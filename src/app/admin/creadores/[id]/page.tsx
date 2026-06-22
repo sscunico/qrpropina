@@ -1,18 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  ArrowLeft,
   BadgePercent,
   CheckCircle2,
   Download,
   ExternalLink,
   Pencil,
   Power,
+  QrCode,
   Trash2,
+  Unplug,
   Wallet
 } from "lucide-react";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import {
   createCreatorQr,
   deleteCreatorQr,
+  disconnectMercadoPago,
   toggleCreator,
   updateCreator,
   updateCreatorMercadoPagoAlias,
@@ -20,7 +25,6 @@ import {
   updateCreatorQr
 } from "@/app/admin/actions";
 import { CopyLinkButton } from "@/app/admin/creadores/[id]/CopyLinkButton";
-import { MercadoPagoAliasForm } from "@/app/admin/creadores/[id]/MercadoPagoAliasForm";
 import { MercadoPagoAlertButton } from "@/app/admin/creadores/[id]/MercadoPagoAlertButton";
 import { QrIdForm } from "@/app/admin/creadores/[id]/QrIdForm";
 import { getAdminSession } from "@/lib/auth";
@@ -108,6 +112,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
   const updateWithId = updateCreator.bind(null, creator.id);
   const updateProfileWithId = updateCreatorProfile.bind(null, creator.id);
   const updateMpAliasWithId = updateCreatorMercadoPagoAlias.bind(null, creator.id);
+  const disconnectMpWithId = disconnectMercadoPago.bind(null, creator.id);
   const toggleWithId = toggleCreator.bind(null, creator.id, !creator.isActive);
   const createQrWithId = createCreatorQr.bind(null, creator.id);
   const selectedQr = editQr ? qrItems.find((item) => item.id === editQr) : null;
@@ -121,26 +126,54 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
 
   return (
     <main className="page">
-      <section className="hero-row">
+      <section className={showMercadoPagoIntegration && !isAdmin ? "hero-row hero-row--split" : "hero-row"}>
         <div>
           <p className="kicker">{sectionTitle[activeSection]}</p>
           <h1>{creator.displayName}</h1>
-          <p className="muted">{publicUrl}</p>
+          <div className="hero-url-row">
+            <span className="muted">{publicUrl}</span>
+            <Link className="icon-button ghost hero-url-open" href={publicUrl} rel="noreferrer" target="_blank" title="Abrir página">
+              <ExternalLink size={15} />
+            </Link>
+          </div>
         </div>
         <div className="actions">
-          <Link className="button secondary" href={publicUrl}>
-            <ExternalLink size={17} />
-            Abrir
-          </Link>
-          {showMercadoPagoIntegration ? (
-            isAdmin ? (
-              <Link className="button primary" href={`/api/mercadopago/oauth/start?creatorId=${creator.id}`}>
-                <Wallet size={17} />
-                Integrar Mercado Pago
-              </Link>
-            ) : (
-              <MercadoPagoAlertButton creatorId={creator.id} isConnected={sellerIsConnected(creator)} />
-            )
+          {isAdmin ? (
+            <Link className="button secondary" href="/admin/creadores">
+              <ArrowLeft size={17} />
+              Volver
+            </Link>
+          ) : null}
+          {showMercadoPagoIntegration && !isAdmin ? (
+            <>
+              {sellerIsConnected(creator) ? (
+                <div className="mp-button-row">
+                  <MercadoPagoAlertButton creatorId={creator.id} isConnected disabled />
+                  <form action={disconnectMpWithId}>
+                    <button className="button danger mp-disconnect-btn" type="submit">
+                      <Unplug size={17} />
+                      Desintegrar
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <MercadoPagoAlertButton creatorId={creator.id} isConnected={false} />
+              )}
+              <span className="mp-connect-label">
+                {sellerIsConnected(creator) ? "Mercado Pago integrado" : "Integración con Mercado Pago"}
+                {sellerIsConnected(creator) ? (
+                  <InfoTooltip
+                    text="Tu cuenta de Mercado Pago está conectada. Los pagos de propinas se acreditan automáticamente en tu billetera."
+                    position="bottom"
+                  />
+                ) : (
+                  <InfoTooltip
+                    text="Para recibir propinas de tus clientes necesitás conectar tu cuenta de Mercado Pago. Al integrarla, cada pago que hagan desde tu QR se acredita directamente en tu billetera de MP. Es rápido, seguro y solo se hace una vez."
+                    position="bottom"
+                  />
+                )}
+              </span>
+            </>
           ) : null}
         </div>
       </section>
@@ -156,52 +189,51 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
             <p className="kicker">Usuario nuevo</p>
             <h2>Completa tus datos para empezar a recibir propinas</h2>
             <p>
-              Primero carga tu nombre visible, alias, actividad y lugar. Despues crea tu primer QR,
+              Primero carga tu nombre visible, alias, actividad y lugar. Después creá tu primer QR,
               descargalo y compartilo o imprimilo para que tus clientes puedan pagar desde el celular.
+              También necesitás integrar tu cuenta de Mercado Pago: sin esa conexión los pagos no se
+              acreditan en tu billetera. <InfoTooltip text="La integración con Mercado Pago vincula tu cuenta para que cada propina que recibas por QR se deposite automáticamente en tu billetera de MP. Se hace una sola vez desde el botón de integración y es totalmente seguro." position="right" />
             </p>
           </div>
           <div className="banner-actions">
-            <Link className="button primary" href={`${perfilHref}#mis-datos`}>
-              <Pencil size={17} />
-              Completar datos
-            </Link>
-            <Link className="button secondary" href={`${qrsHref}#qr-editor`}>
-              Crear QR
+            <Link className="button primary" href={`${qrsHref}#qr-editor`}>
+              <QrCode size={17} />
+              Crear
             </Link>
           </div>
         </section>
       ) : null}
 
-      <section className="stats">
-        <div className="stat">
-          <span className="muted">Estado</span>
-          <strong>{creator.isActive ? "Activo" : "Pausado"}</strong>
-        </div>
-        <div className="stat">
-          <span className="muted">Recibido aprobado</span>
-          <strong>{formatMoney(totalReceived)}</strong>
-        </div>
-        {isAdmin ? (
+      {isAdmin ? (
+        <section className="stats">
           <div className="stat">
-            <span className="muted">Comisión cobrada</span>
+            <span className="muted">Estado <InfoTooltip text="Un creador pausado no puede recibir propinas. Sus QR siguen activos pero los pagos son rechazados." position="bottom" /></span>
+            <strong>{creator.isActive ? "Activo" : "Pausado"}</strong>
+          </div>
+          <div className="stat">
+            <span className="muted">Recibido aprobado <InfoTooltip text="Suma de todas las propinas con estado aprobado por Mercado Pago, antes de descontar comisión." position="bottom" /></span>
+            <strong>{formatMoney(totalReceived)}</strong>
+          </div>
+          <div className="stat">
+            <span className="muted">Comisión cobrada <InfoTooltip text="Total retenido por la plataforma como comisión en propinas aprobadas de este creador." position="bottom" /></span>
             <strong>{formatMoney(totalFee)}</strong>
           </div>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
 
       <div className="creator-section-view">
         {activeSection === "qrs" ? (
           <section className="panel" id="qrs">
             <div className="section-row">
               <div>
-                <h2>Crear / editar QR</h2>
+                <h2>Crear / editar QR <InfoTooltip text="Cada QR tiene un ID único que genera una URL del tipo /q/id. Los clientes escanean ese QR para hacer la propina." /></h2>
                 <p className="muted">
                   {selectedQr
                     ? "Edita el ID de este QR. La URL se actualiza automaticamente."
                     : "Crea un ID unico para generar una URL del tipo /q/id."}
                 </p>
               </div>
-              <span className="pill">{creator.qrCodes.length}/30 QR</span>
+              <span className="pill">{creator.qrCodes.length}/30 QR <InfoTooltip text="Podés tener hasta 30 QR distintos. Útil para tener uno por mesa, zona o canal." /></span>
             </div>
 
             <div className="qr-editor" id="qr-editor">
@@ -354,60 +386,54 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
               <p className="muted">
                 Estos datos se muestran en tu link público y ayudan a identificar tus QR.
               </p>
-              <form action={updateProfileWithId} className="form">
-                <div className="field">
-                  <label htmlFor="profileDisplayName">Nombre visible</label>
-                  <input
-                    id="profileDisplayName"
-                    name="displayName"
-                    defaultValue={creator.displayName}
-                    required
-                  />
+              <form action={updateProfileWithId} className="form profile-form-grid">
+                <div className="profile-form-fields">
+                  <div className="field">
+                    <label htmlFor="profileDisplayName">Nombre visible</label>
+                    <input
+                      id="profileDisplayName"
+                      name="displayName"
+                      defaultValue={creator.displayName}
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="profileSlug">Alias URL <InfoTooltip text="Tu dirección pública: qrpropina.com/t/tu-alias. Solo letras minúsculas, números y guiones. Ejemplo: juan-perez." /></label>
+                    <input
+                      id="profileSlug"
+                      name="slug"
+                      defaultValue={creator.slug}
+                      pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="field">
-                  <label htmlFor="profileSlug">Alias URL</label>
-                  <input
-                    id="profileSlug"
-                    name="slug"
-                    defaultValue={creator.slug}
-                    pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                    required
-                  />
+                <div className="profile-form-fields profile-form-right">
+                  <div className="field">
+                    <label htmlFor="profileRole">Actividad <InfoTooltip text="Tu oficio o profesión. Se muestra en tu página pública para que el cliente sepa quién sos. Ejemplo: Mozo, Barbero, Repartidor." /></label>
+                    <input
+                      id="profileRole"
+                      name="role"
+                      defaultValue={creator.role || ""}
+                      placeholder="Mozo, barbero, delivery"
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="profileLocationName">Lugar <InfoTooltip text="El local, bar o zona donde trabajás. Ayuda al cliente a reconocerte. Ejemplo: Bar El Recreo, Palermo." /></label>
+                    <input
+                      id="profileLocationName"
+                      name="locationName"
+                      defaultValue={creator.locationName || ""}
+                      placeholder="Bar, local o zona"
+                    />
+                  </div>
+                  <button className="button primary profile-save-btn" type="submit">
+                    <CheckCircle2 size={17} />
+                    Guardar mis datos
+                  </button>
                 </div>
-                <div className="field">
-                  <label htmlFor="profileRole">Actividad</label>
-                  <input
-                    id="profileRole"
-                    name="role"
-                    defaultValue={creator.role || ""}
-                    placeholder="Mozo, barbero, delivery"
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="profileLocationName">Lugar</label>
-                  <input
-                    id="profileLocationName"
-                    name="locationName"
-                    defaultValue={creator.locationName || ""}
-                    placeholder="Bar, local o zona"
-                  />
-                </div>
-                <button className="button primary" type="submit">
-                  <CheckCircle2 size={17} />
-                  Guardar mis datos
-                </button>
               </form>
 
-              <div className="storage-list profile-summary">
-                <div className="storage-row">
-                  <span className="muted">Saldo aprobado</span>
-                  <strong>{formatMoney(totalReceived)}</strong>
-                </div>
-                <div className="storage-row">
-                  <span className="muted">Link público</span>
-                  <code>{publicUrl}</code>
-                </div>
-              </div>
             </section>
           )
         ) : null}
@@ -416,22 +442,16 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
           <section className="panel">
             <div className="section-row">
               <div>
-                <h2>Mercado Pago</h2>
+                <h2>Mercado Pago <InfoTooltip text="Conectá tu cuenta de Mercado Pago para recibir propinas directamente en tu billetera. La integración usa OAuth: es segura y no requiere contraseña." /></h2>
                 <p className="muted">
                   Primero cargá el alias de Mercado Pago. La conexión real de la cuenta se confirma luego con OAuth.
                 </p>
               </div>
               <span className={sellerIsConnected(creator) ? "pill ok" : "pill warn"}>
                 <Wallet size={14} />
-                {sellerIsConnected(creator) ? "Cuenta conectada" : "Sin conectar"}
+                {sellerIsConnected(creator) ? "Cuenta conectada" : "Sin integrar"}
               </span>
             </div>
-
-            <MercadoPagoAliasForm
-              creatorId={creator.id}
-              defaultValue={creator.mpAlias}
-              formAction={updateMpAliasWithId}
-            />
 
             <div className="mp-alias-summary">
               <span className={creator.mpAlias ? "pill ok" : "pill warn"}>
@@ -480,11 +500,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                 </span>
                 {creator.mpUserId ? <span className="pill">MP user {creator.mpUserId}</span> : null}
               </div>
-            ) : (
-              <div className="actions">
-                <MercadoPagoAlertButton creatorId={creator.id} isConnected={sellerIsConnected(creator)} />
-              </div>
-            )}
+            ) : null}
           </section>
         ) : null}
 
