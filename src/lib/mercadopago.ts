@@ -145,6 +145,10 @@ export async function createMercadoPagoPreference({
     body.marketplace_fee = centsToPesos(tip.platformFeeCents);
   }
 
+  if (creator.mpUserId && !usingPlatformToken) {
+    (body as Record<string, unknown>).collector_id = parseInt(creator.mpUserId, 10);
+  }
+
   const mpPreferenceUrl = `${mercadoPagoApiBaseUrl()}/checkout/preferences`;
 
   void addPaymentEvent({
