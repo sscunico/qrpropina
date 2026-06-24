@@ -35,3 +35,7 @@ export function mercadoLibreApiBaseUrl() {
 export function useSandboxLink() {
   return process.env.MERCADOPAGO_USE_SANDBOX_LINK !== "false";
 }
+
+export function mercadoPagoClientId() {
+  return process.env.MERCADOPAGO_CLIENT_ID || null;
+}

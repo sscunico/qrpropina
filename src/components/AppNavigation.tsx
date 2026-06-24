@@ -245,13 +245,10 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
               <ProfileAvatar className="top-profile" label={profileLabel} picture={session.picture} />
             </>
           ) : (
-            <>
-              <Link className={pathname === "/login" ? "topbar-login active" : "topbar-login"} href={googleLoginHref}>
-                <GoogleIcon size={18} />
-                Iniciar sesión
-              </Link>
-              <Link className="topbar-join" href={googleLoginHref}>Unirse ahora</Link>
-            </>
+            <Link className="topbar-login-join" href={googleLoginHref}>
+              <GoogleIcon size={18} />
+              Iniciar sesión <span className="topbar-login-join-divider">|</span> Unirse
+            </Link>
           )}
           {session ? (
             <button

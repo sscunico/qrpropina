@@ -6,9 +6,7 @@ coverage
 .env*.local
 *.db
 *.db-journal
-data/*
-!data/db.json
-data/backups/
-data/*.tmp
+data/
+
 dev-server*.log
 tsconfig.tsbuildinfo

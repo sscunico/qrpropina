@@ -1,11 +1,36 @@
 import { redirect } from "next/navigation";
-import { BadgePercent, Palette, RotateCcw, Wallet } from "lucide-react";
+import { BadgePercent, Palette, RotateCcw, ServerCog, Wallet } from "lucide-react";
 import { resetColorOverrides, saveColorOverrides, setMercadoPagoIntegrationVisibility, setTransferDiscountPercent } from "@/app/admin/actions";
 import { PercentStepper } from "@/components/PercentStepper";
 import { InfoTooltip } from "@/components/InfoTooltip";
+import { EnvVarsSection } from "@/components/EnvVarsSection";
 import { getAdminSession } from "@/lib/auth";
 import { getAppSettings } from "@/lib/db";
 import { appUrl } from "@/lib/env";
+
+function maskSecret(value: string | undefined): string {
+  if (!value) return "(no configurada)";
+  if (value.length <= 8) return "••••••••";
+  return value.slice(0, 4) + "•".repeat(Math.min(value.length - 8, 20)) + value.slice(-4);
+}
+
+const ENV_VARS: { key: string; label: string; sensitive: boolean; group: string }[] = [
+  { key: "APP_URL",                            label: "URL de la app",       sensitive: false, group: "App" },
+  { key: "APP_NAME",                           label: "Nombre",              sensitive: false, group: "App" },
+  { key: "ADMIN_GOOGLE_EMAILS",                label: "Emails admin",        sensitive: false, group: "App" },
+  { key: "APP_ENCRYPTION_KEY",                 label: "Encryption key",      sensitive: true,  group: "App" },
+  { key: "ADMIN_SESSION_SECRET",               label: "Session secret",      sensitive: true,  group: "App" },
+  { key: "GOOGLE_CLIENT_ID",                   label: "Client ID",           sensitive: true,  group: "Google" },
+  { key: "GOOGLE_CLIENT_SECRET",               label: "Client secret",       sensitive: true,  group: "Google" },
+  { key: "MP_ENABLE_DEMO_CHECKOUT",            label: "Demo checkout",       sensitive: false, group: "Mercado Pago" },
+  { key: "MERCADOPAGO_USE_SANDBOX_LINK",       label: "Sandbox link",        sensitive: false, group: "Mercado Pago" },
+  { key: "MERCADOPAGO_API_BASE_URL",           label: "API URL",             sensitive: false, group: "Mercado Pago" },
+  { key: "MERCADOPAGO_AUTH_BASE_URL",          label: "Auth URL",            sensitive: false, group: "Mercado Pago" },
+  { key: "MERCADOPAGO_CLIENT_ID",              label: "Client ID",           sensitive: false, group: "Mercado Pago" },
+  { key: "NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY", label: "Public key",          sensitive: true,  group: "Mercado Pago" },
+  { key: "MERCADOPAGO_ACCESS_TOKEN",           label: "Access token",        sensitive: true,  group: "Mercado Pago" },
+  { key: "MERCADOPAGO_CLIENT_SECRET",          label: "Client secret",       sensitive: true,  group: "Mercado Pago" },
+];
 
 const BRAND_COLORS = [
   { name: "--background", label: "Fondo", defaultValue: "#fbf8ff" },
@@ -129,14 +154,16 @@ export default async function AdminSettingsPage() {
             <div className="color-grid">
               {BRAND_COLORS.map(({ name, label, defaultValue }) => (
                 <label className="color-row" htmlFor={name} key={name}>
-                  <input
-                    defaultValue={settings.colorOverrides[name] || defaultValue}
-                    id={name}
-                    name={name}
-                    type="color"
-                  />
+                  <div className="color-row-swatch">
+                    <input
+                      defaultValue={settings.colorOverrides[name] || defaultValue}
+                      id={name}
+                      name={name}
+                      type="color"
+                    />
+                    <code className="color-value">{settings.colorOverrides[name] || defaultValue}</code>
+                  </div>
                   <span>{label}</span>
-                  <code className="color-value">{settings.colorOverrides[name] || defaultValue}</code>
                 </label>
               ))}
             </div>
@@ -150,6 +177,30 @@ export default async function AdminSettingsPage() {
               ) : null}
             </div>
           </form>
+        </section>
+        <section className="panel settings-panel">
+          <div className="section-row compact-row">
+            <div>
+              <p className="kicker">Servidor</p>
+              <h2>Variables de entorno</h2>
+              <p className="muted">Estado de las variables configuradas en el servidor. Usá el ojito para revelar los valores.</p>
+            </div>
+            <span className="pill">
+              <ServerCog size={14} />
+              Entorno
+            </span>
+          </div>
+
+          <EnvVarsSection vars={ENV_VARS.map(({ key, label, sensitive, group }) => {
+            const raw = process.env[key];
+            return {
+              key,
+              label,
+              group,
+              value: sensitive ? maskSecret(raw) : (raw || "(no configurada)"),
+              missing: !raw,
+            };
+          })} />
         </section>
       </div>
     </main>

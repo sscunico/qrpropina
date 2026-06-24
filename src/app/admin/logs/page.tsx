@@ -1,4 +1,5 @@
-﻿import Link from "next/link";
+﻿import { Fragment } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getAdminSession } from "@/lib/auth";
@@ -81,7 +82,7 @@ export default async function AdminLogsPage({ searchParams }: Props) {
           <p className="muted">No hay eventos registrados todavía. Generá una propina para ver los logs acá.</p>
         ) : (
           <>
-            <div className="table-responsive">
+            <div className="logs-table-wrapper">
               <table className="table logs-table">
                 <thead>
                   <tr>
@@ -95,23 +96,49 @@ export default async function AdminLogsPage({ searchParams }: Props) {
                 <tbody>
                   {events.map((event) => {
                     const parsed = tryParseJson(event.payload);
+                    const hasReqRes = parsed && (parsed.request || parsed.response);
+                    const url = parsed?.request?.url ?? parsed?.url;
+                    const method = parsed?.request?.method ?? parsed?.method;
                     return (
-                      <tr key={event.id}>
-                        <td><span className={eventTypeBadgeClass(event.eventType)}>{event.eventType}</span></td>
-                        <td className="muted log-date-cell">{formatDateTime(event.createdAt)}</td>
-                        <td><code>{event.tipId || "-"}</code></td>
-                        <td>
-                          {parsed?.url ? (
-                            <div className="log-url-row compact"><span className="log-method">{parsed.method ?? "GET"}</span><code className="log-url">{parsed.url}</code></div>
-                          ) : <span className="muted">-</span>}
-                        </td>
-                        <td>
-                          <details className="log-details">
-                            <summary>Ver</summary>
-                            <pre className="log-payload">{parsed ? JSON.stringify(parsed.body ?? parsed, null, 2) : event.payload}</pre>
-                          </details>
-                        </td>
-                      </tr>
+                      <Fragment key={event.id}>
+                        <tr>
+                          <td><span className={eventTypeBadgeClass(event.eventType)}>{event.eventType}</span></td>
+                          <td className="muted log-date-cell">{formatDateTime(event.createdAt)}</td>
+                          <td className="log-tip-cell"><code>{event.tipId || "-"}</code></td>
+                          <td>
+                            {url ? (
+                              <div className="log-url-row compact"><span className="log-method">{method ?? "GET"}</span><code className="log-url">{url}</code></div>
+                            ) : <span className="muted">-</span>}
+                          </td>
+                          <td>
+                            <details className="log-details">
+                              <summary>Ver</summary>
+                            </details>
+                          </td>
+                        </tr>
+                        <tr className="log-payload-row">
+                          <td colSpan={5}>
+                            {hasReqRes ? (
+                              <div className="log-req-res">
+                                {parsed.request && (
+                                  <div className="log-req-res-section">
+                                    <p className="log-req-res-label">REQUEST</p>
+                                    <pre className="log-payload">{JSON.stringify(parsed.request, null, 2)}</pre>
+                                  </div>
+                                )}
+                                {parsed.response && (
+                                  <div className="log-req-res-section">
+                                    <p className="log-req-res-label">RESPONSE</p>
+                                    <pre className="log-payload">{JSON.stringify(parsed.response, null, 2)}</pre>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <pre className="log-payload">{parsed ? JSON.stringify(parsed, null, 2) : event.payload}</pre>
+                            )}
+                          </td>
+                        </tr>
+                      </Fragment>
                     );
                   })}
                 </tbody>

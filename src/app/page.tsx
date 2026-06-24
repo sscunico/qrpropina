@@ -41,12 +41,9 @@ export default async function HomePage({ searchParams }: Props) {
           <div className="landing-hero-actions">
             {showAuthActions ? (
               <div className="actions landing-auth-actions">
-                <Link className="topbar-login landing-auth-button" href={googleLoginHref}>
+                <Link className="topbar-login-join landing-auth-button" href={googleLoginHref}>
                   <GoogleIcon size={20} />
-                  Iniciar sesión
-                </Link>
-                <Link className="topbar-join landing-auth-button" href={googleLoginHref}>
-                  Unirse ahora
+                  Iniciar sesión <span className="topbar-login-join-divider">|</span> Unirse
                 </Link>
               </div>
             ) : null}
@@ -93,7 +90,7 @@ export default async function HomePage({ searchParams }: Props) {
           <h2>Tu panel de propinas, privado y simple</h2>
         </div>
         <Link className="button dark" href={showAuthActions ? googleLoginHref : "/admin"}>
-          <WalletCards size={18} />
+          {showAuthActions ? <GoogleIcon size={18} /> : <WalletCards size={18} />}
           {showAuthActions ? "Continuar con Google" : "Ir al panel"}
         </Link>
       </section>

@@ -8,6 +8,7 @@ import {
   mercadoLibreApiBaseUrl,
   mercadoPagoApiBaseUrl,
   mercadoPagoAuthBaseUrl,
+  mercadoPagoClientId,
   useSandboxLink
 } from "@/lib/env";
 import { centsToPesos } from "@/lib/money";
@@ -149,18 +150,19 @@ export async function createMercadoPagoPreference({
     (body as Record<string, unknown>).collector_id = parseInt(creator.mpUserId, 10);
   }
 
+  const appId = mercadoPagoClientId();
+  if (appId) {
+    (body as Record<string, unknown>).marketplace = appId;
+  }
+
   const mpPreferenceUrl = `${mercadoPagoApiBaseUrl()}/checkout/preferences`;
 
-  void addPaymentEvent({
-    tipId: tip.id,
-    eventType: "mp.preference.request",
-    payload: JSON.stringify({
-      url: mpPreferenceUrl,
-      method: "POST",
-      tokenSource: usingPlatformToken ? "platform (MERCADOPAGO_ACCESS_TOKEN)" : "creator OAuth",
-      body
-    })
-  }).catch(() => {});
+  const request = {
+    url: mpPreferenceUrl,
+    method: "POST",
+    tokenSource: usingPlatformToken ? "platform (MERCADOPAGO_ACCESS_TOKEN)" : "creator OAuth",
+    body
+  };
 
   const client = createMercadoPagoSdkClient(accessToken);
   const preferenceClient = new Preference(client);
@@ -171,7 +173,7 @@ export async function createMercadoPagoPreference({
     void addPaymentEvent({
       tipId: tip.id,
       eventType: "mp.preference.error",
-      payload: JSON.stringify({ url: mpPreferenceUrl, error: String(err) })
+      payload: JSON.stringify({ request, response: { error: String(err) } })
     }).catch(() => {});
     throw err;
   }
@@ -191,13 +193,15 @@ export async function createMercadoPagoPreference({
 
   void addPaymentEvent({
     tipId: tip.id,
-    eventType: "mp.preference.response",
+    eventType: "mp.preference",
     payload: JSON.stringify({
-      url: mpPreferenceUrl,
-      id: preference.id,
-      init_point: preference.init_point,
-      sandbox_init_point: preference.sandbox_init_point,
-      checkoutUrl
+      request,
+      response: {
+        id: preference.id,
+        init_point: preference.init_point,
+        sandbox_init_point: preference.sandbox_init_point,
+        checkoutUrl
+      }
     })
   }).catch(() => {});
 
