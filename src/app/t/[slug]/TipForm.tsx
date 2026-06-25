@@ -9,9 +9,10 @@ import { DEFAULT_AMOUNTS } from "@/lib/money";
 type Props = {
   slug: string;
   creatorName: string;
+  commissionPercent: number;
 };
 
-export function TipForm({ slug, creatorName }: Props) {
+export function TipForm({ slug, creatorName, commissionPercent }: Props) {
   const [selectedAmount, setSelectedAmount] = useState(DEFAULT_AMOUNTS[3]);
   const [customAmount, setCustomAmount] = useState("");
   const [payerEmail, setPayerEmail] = useState("");
@@ -23,6 +24,13 @@ export function TipForm({ slug, creatorName }: Props) {
     const parsed = Number(customAmount);
     return customAmount ? parsed : selectedAmount;
   }, [customAmount, selectedAmount]);
+
+  const { grossAmount, platformFee } = useMemo(() => {
+    if (commissionPercent <= 0) return { grossAmount: amount, platformFee: 0 };
+    const grossCents = Math.round((amount * 100) / (1 - commissionPercent / 100));
+    const gross = grossCents / 100;
+    return { grossAmount: gross, platformFee: gross - amount };
+  }, [amount, commissionPercent]);
 
   async function submitTip() {
     setError("");
@@ -126,8 +134,25 @@ export function TipForm({ slug, creatorName }: Props) {
           type="button"
         >
           {isLoading ? <Loader2 size={18} /> : null}
-          {isLoading ? "Generando pago..." : `Continuar con $${amount.toLocaleString("es-AR")}`}
+          {isLoading ? "Generando pago..." : `Continuar con $${grossAmount.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
         </button>
+        {commissionPercent > 0 && amount >= 100 && (
+          <div className="fee-breakdown">
+            <div className="fee-row">
+              <span>Propina para {creatorName}</span>
+              <span>${amount.toLocaleString("es-AR")}</span>
+            </div>
+            <div className="fee-row">
+              <span>Comisión de plataforma ({commissionPercent}%)</span>
+              <span>+${platformFee.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="fee-row fee-total">
+              <strong>Total a pagar</strong>
+              <strong>${grossAmount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+            </div>
+            <p className="fee-note">Mercado Pago puede aplicar comisiones adicionales según el método de pago seleccionado.</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { CreatorAvatar } from "@/app/t/[slug]/CreatorAvatar";
 import { TipForm } from "@/app/t/[slug]/TipForm";
-import { getCreatorBySlug } from "@/lib/db";
+import { getAppSettings, getCreatorBySlug } from "@/lib/db";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TipPage({ params }: Props) {
   const { slug } = await params;
-  const creator = await getCreatorBySlug(slug);
+  const [creator, settings] = await Promise.all([getCreatorBySlug(slug), getAppSettings()]);
 
   if (!creator || !creator.isActive) {
     notFound();
@@ -30,7 +30,7 @@ export default async function TipPage({ params }: Props) {
             <h1>{creator.displayName}</h1>
           </div>
         </div>
-        <TipForm creatorName={creator.displayName} slug={creator.slug} />
+        <TipForm commissionPercent={settings.transferDiscountPercent} creatorName={creator.displayName} slug={creator.slug} />
       </section>
     </main>
   );

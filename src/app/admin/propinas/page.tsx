@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, DollarSign } from "lucide-react";
 import { InfoTooltip } from "@/components/InfoTooltip";
+import { DragScrollArea } from "@/components/DragScrollArea";
 import { getAdminSession } from "@/lib/auth";
 import { listApprovedTipsForCreator, listApprovedTipsWithCreators } from "@/lib/db";
 import { formatMoney, centsToPesos } from "@/lib/money";
@@ -56,47 +57,49 @@ export default async function PropinasPage({ searchParams }: Props) {
             </div>
           ) : (
             <>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Creador</th>
-                    <th>Fecha y hora</th>
-                    <th className="tip-col-amount">Recibe <InfoTooltip text="Monto que recibe el creador luego de descontar la comisión de la plataforma." position="bottom" /></th>
-                    <th className="tip-col-pct">Comisión <InfoTooltip text="Porcentaje retenido por la plataforma sobre esta propina." position="bottom" /></th>
-                    <th className="tip-col-fee">Comisión $ <InfoTooltip text="Monto en pesos retenido por la plataforma en esta propina." position="bottom" /></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((tip) => {
-                    const receivedCents = tip.amountCents - tip.platformFeeCents;
-                    return (
-                      <tr key={tip.id}>
-                        <td>
-                          <div className="tip-creator-cell">
-                            {tip.creator.photoUrl ? (
-                              <img
-                                alt=""
-                                className="tip-creator-avatar"
-                                referrerPolicy="no-referrer"
-                                src={tip.creator.photoUrl}
-                              />
-                            ) : (
-                              <div className="tip-creator-avatar tip-creator-avatar-fallback">
-                                {tip.creator.displayName.slice(0, 2).toUpperCase()}
-                              </div>
-                            )}
-                            <span>{tip.creator.displayName}</span>
-                          </div>
-                        </td>
-                        <td className="muted notif-date">{formatDate(tip.createdAt)}</td>
-                        <td className="tip-col-amount"><strong>{formatMoney(receivedCents)}</strong></td>
-                        <td className="tip-col-pct muted">{tip.creator.commissionPercent}%</td>
-                        <td className="tip-col-fee muted">{formatMoney(tip.platformFeeCents)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <DragScrollArea ariaLabel="Tabla de propinas" className="table-scroll">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Creador</th>
+                      <th>Fecha y hora</th>
+                      <th className="tip-col-amount">Recibe <InfoTooltip text="Monto que recibe el creador luego de descontar la comisión de la plataforma." position="bottom" /></th>
+                      <th className="tip-col-pct">Comisión <InfoTooltip text="Porcentaje retenido por la plataforma sobre esta propina." position="bottom" /></th>
+                      <th className="tip-col-fee">Comisión $ <InfoTooltip text="Monto en pesos retenido por la plataforma en esta propina." position="bottom" /></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((tip) => {
+                      const receivedCents = tip.amountCents - tip.platformFeeCents;
+                      return (
+                        <tr key={tip.id}>
+                          <td>
+                            <div className="tip-creator-cell">
+                              {tip.creator.photoUrl ? (
+                                <img
+                                  alt=""
+                                  className="tip-creator-avatar"
+                                  referrerPolicy="no-referrer"
+                                  src={tip.creator.photoUrl}
+                                />
+                              ) : (
+                                <div className="tip-creator-avatar tip-creator-avatar-fallback">
+                                  {tip.creator.displayName.slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <span>{tip.creator.displayName}</span>
+                            </div>
+                          </td>
+                          <td className="muted notif-date">{formatDate(tip.createdAt)}</td>
+                          <td className="tip-col-amount"><strong>{formatMoney(receivedCents)}</strong></td>
+                          <td className="tip-col-pct muted">{tip.creator.commissionPercent}%</td>
+                          <td className="tip-col-fee muted">{formatMoney(tip.platformFeeCents)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </DragScrollArea>
 
               {totalPages > 1 ? (
                 <div className="pagination">
@@ -152,25 +155,27 @@ export default async function PropinasPage({ searchParams }: Props) {
           </div>
         ) : (
           <>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Fecha y hora</th>
-                  <th className="tip-col-amount">Cantidad que recibís <InfoTooltip text="Monto acreditado en tu cuenta de Mercado Pago, descontada la comisión de la plataforma." position="bottom" /></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((tip) => {
-                  const receivedCents = tip.amountCents - tip.platformFeeCents;
-                  return (
-                    <tr key={tip.id}>
-                      <td className="muted notif-date">{formatDate(tip.createdAt)}</td>
-                      <td className="tip-col-amount"><strong>{formatMoney(receivedCents)}</strong></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <DragScrollArea ariaLabel="Tabla de mis propinas" className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Fecha y hora</th>
+                    <th className="tip-col-amount">Cantidad que recibís <InfoTooltip text="Monto acreditado en tu cuenta de Mercado Pago, descontada la comisión de la plataforma." position="bottom" /></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((tip) => {
+                    const receivedCents = tip.amountCents - tip.platformFeeCents;
+                    return (
+                      <tr key={tip.id}>
+                        <td className="muted notif-date">{formatDate(tip.createdAt)}</td>
+                        <td className="tip-col-amount"><strong>{formatMoney(receivedCents)}</strong></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </DragScrollArea>
 
             {totalPages > 1 ? (
               <div className="pagination">

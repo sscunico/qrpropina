@@ -1551,6 +1551,37 @@ h3 {
   color: #054f43;
 }
 
+.fee-breakdown {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface);
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.fee-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+}
+
+.fee-row.fee-total {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+  padding-top: 8px;
+  color: var(--text);
+  font-size: 0.93rem;
+}
+
+.fee-note {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 .message {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -2699,6 +2730,18 @@ tr:has(details[open]) + .log-payload-row {
   font-weight: 800;
   letter-spacing: 0.08em;
   color: var(--muted);
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  cursor: grab;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll.dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .table {

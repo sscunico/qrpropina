@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createTipRecord, getAppSettings, getCreatorBySlug, updateTipRecord } from "@/lib/db";
 import { isDemoCheckoutEnabled } from "@/lib/env";
 import { createMercadoPagoPreference, sellerIsConnected } from "@/lib/mercadopago";
-import { calculateFeeCents, pesosToCents } from "@/lib/money";
+import { calculateGrossUp, pesosToCents } from "@/lib/money";
 
 const checkoutSchema = z.object({
   slug: z.string().min(2),
@@ -31,10 +31,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const amountCents = pesosToCents(input.amount);
+    const creatorAmountCents = pesosToCents(input.amount);
     const settings = await getAppSettings();
     const commissionPercent = settings.transferDiscountPercent;
-    const platformFeeCents = calculateFeeCents(amountCents, commissionPercent);
+    const amountCents = calculateGrossUp(creatorAmountCents, commissionPercent);
+    const platformFeeCents = amountCents - creatorAmountCents;
 
     const tip = await createTipRecord({
       creatorId: creator.id,
