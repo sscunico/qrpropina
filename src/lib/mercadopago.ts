@@ -450,24 +450,40 @@ export function verifyWebhookSignature(input: {
 export type MpPaymentData = {
   netReceivedAmountCents: number | null;
   totalPaidAmountCents: number | null;
+  marketplaceFeeCents: number | null;
   moneyReleaseDate: string | null;
+  collectorId: string | null;
+  payerId: string | null;
 };
 
 export function parseMpPaymentData(rawPayment: string | null): MpPaymentData {
-  if (!rawPayment) return { netReceivedAmountCents: null, totalPaidAmountCents: null, moneyReleaseDate: null };
+  const empty: MpPaymentData = {
+    netReceivedAmountCents: null,
+    totalPaidAmountCents: null,
+    marketplaceFeeCents: null,
+    moneyReleaseDate: null,
+    collectorId: null,
+    payerId: null
+  };
+  if (!rawPayment) return empty;
   try {
     const payment = JSON.parse(rawPayment) as Record<string, unknown>;
     const details = payment.transaction_details as Record<string, unknown> | undefined;
+    const payer = payment.payer as Record<string, unknown> | undefined;
     const net = details?.net_received_amount;
     const total = details?.total_paid_amount;
+    const mpFee = payment.marketplace_fee ?? payment.application_fee;
     const releaseDate = payment.money_release_date;
     return {
       netReceivedAmountCents: typeof net === "number" ? Math.round(net * 100) : null,
       totalPaidAmountCents: typeof total === "number" ? Math.round(total * 100) : null,
-      moneyReleaseDate: typeof releaseDate === "string" ? releaseDate : null
+      marketplaceFeeCents: typeof mpFee === "number" ? Math.round(mpFee * 100) : null,
+      moneyReleaseDate: typeof releaseDate === "string" ? releaseDate : null,
+      collectorId: payment.collector_id != null ? String(payment.collector_id) : null,
+      payerId: payer?.id != null ? String(payer.id) : null
     };
   } catch {
-    return { netReceivedAmountCents: null, totalPaidAmountCents: null, moneyReleaseDate: null };
+    return empty;
   }
 }
 

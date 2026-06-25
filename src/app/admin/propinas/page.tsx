@@ -64,9 +64,10 @@ export default async function PropinasPage({ searchParams }: Props) {
                     <tr>
                       <th>Creador</th>
                       <th>Fecha y hora</th>
-                      <th className="tip-col-amount">Recibe <InfoTooltip text="Monto que recibe el creador luego de descontar la comisión de la plataforma." position="bottom" /></th>
+                      <th className="tip-col-amount">Recibe <InfoTooltip text="Monto neto que recibe el creador según Mercado Pago (net_received_amount)." position="bottom" /></th>
                       <th className="tip-col-pct">Comisión <InfoTooltip text="Porcentaje retenido por la plataforma sobre esta propina." position="bottom" /></th>
-                      <th className="tip-col-fee">Comisión $ <InfoTooltip text="Monto en pesos retenido por la plataforma en esta propina." position="bottom" /></th>
+                      <th className="tip-col-fee">Comisión $ <InfoTooltip text="Monto de marketplace_fee enviado a MP. Si es 0, el split no se aplicó." position="bottom" /></th>
+                      <th className="tip-col-fee">MP split <InfoTooltip text="marketplace_fee confirmado por MP en el pago. Vacío = MP no devolvió ese campo." position="bottom" /></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -100,6 +101,11 @@ export default async function PropinasPage({ searchParams }: Props) {
                           </td>
                           <td className="tip-col-pct muted">{tip.creator.commissionPercent}%</td>
                           <td className="tip-col-fee muted">{formatMoney(tip.platformFeeCents)}</td>
+                          <td className="tip-col-fee">
+                            {mp.marketplaceFeeCents !== null
+                              ? <strong>{formatMoney(mp.marketplaceFeeCents)}</strong>
+                              : <span className="muted">—</span>}
+                          </td>
                         </tr>
                       );
                     })}

@@ -27,9 +27,8 @@ export function TipForm({ slug, creatorName, commissionPercent }: Props) {
 
   const { grossAmount, platformFee } = useMemo(() => {
     if (commissionPercent <= 0) return { grossAmount: amount, platformFee: 0 };
-    const grossCents = Math.round((amount * 100) / (1 - commissionPercent / 100));
-    const gross = grossCents / 100;
-    return { grossAmount: gross, platformFee: gross - amount };
+    const fee = Math.round(amount * commissionPercent) / 100;
+    return { grossAmount: amount + fee, platformFee: fee };
   }, [amount, commissionPercent]);
 
   async function submitTip() {
@@ -150,7 +149,6 @@ export function TipForm({ slug, creatorName, commissionPercent }: Props) {
               <strong>Total a pagar</strong>
               <strong>${grossAmount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
             </div>
-            <p className="fee-note">Las comisiones de Mercado Pago se descuentan del monto que recibe {creatorName}.</p>
           </div>
         )}
       </div>

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Clock, QrCode } from "lucide-react";
 import { getTipWithCreator, updateTipRecord } from "@/lib/db";
-import { formatMoney, centsToPesos } from "@/lib/money";
-import { parseMpPaymentData } from "@/lib/mercadopago";
+import { formatMoney } from "@/lib/money";
 
 type Props = {
   params: Promise<{ result: string }>;
@@ -62,37 +61,10 @@ export default async function PaymentResultPage({ params, searchParams }: Props)
         <p className="muted">{content.text}</p>
         {tip ? (
           <div className="message">
-            {(() => {
-              const mp = parseMpPaymentData(tip.rawPayment);
-              const creatorReceivesCents = mp.netReceivedAmountCents ?? (tip.amountCents - tip.platformFeeCents);
-              const isConfirmedByMp = mp.netReceivedAmountCents !== null;
-              return (
-                <>
-                  <strong>{formatMoney(tip.amountCents, tip.currency)}</strong>
-                  <p className="muted" style={{ marginBottom: 0 }}>
-                    Total pagado a Mercado Pago
-                  </p>
-                  <p style={{ margin: "8px 0 0" }}>
-                    <strong>{formatMoney(creatorReceivesCents, tip.currency)}</strong>
-                    {" "}
-                    <span className="muted">
-                      recibe {tip.creator.displayName}
-                      {isConfirmedByMp ? " (confirmado por MP)" : " (estimado)"}
-                    </span>
-                  </p>
-                  {mp.moneyReleaseDate && (
-                    <p className="muted" style={{ margin: "6px 0 0" }}>
-                      Disponible el{" "}
-                      {new Date(mp.moneyReleaseDate).toLocaleDateString("es-AR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric"
-                      })}
-                    </p>
-                  )}
-                </>
-              );
-            })()}
+            <strong>{formatMoney(tip.amountCents, tip.currency)}</strong>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Propina para {tip.creator.displayName}
+            </p>
           </div>
         ) : null}
         <div className="actions" style={{ marginTop: 18 }}>
