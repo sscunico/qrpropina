@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { CreatorAvatar } from "@/app/t/[slug]/CreatorAvatar";
 import { TipForm } from "@/app/t/[slug]/TipForm";
-import { getQrCodeWithCreatorByQrId } from "@/lib/db";
+import { getAppSettings, getQrCodeWithCreatorByQrId } from "@/lib/db";
 
 type Props = {
   params: Promise<{ qrId: string }>;
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function QrTipPage({ params }: Props) {
   const { qrId } = await params;
-  const qrCode = await getQrCodeWithCreatorByQrId(qrId);
+  const [qrCode, settings] = await Promise.all([getQrCodeWithCreatorByQrId(qrId), getAppSettings()]);
 
   if (!qrCode || !qrCode.creator.isActive) {
     notFound();
@@ -31,7 +31,7 @@ export default async function QrTipPage({ params }: Props) {
             <h1>{creator.displayName}</h1>
           </div>
         </div>
-        <TipForm creatorName={creator.displayName} slug={creator.slug} />
+        <TipForm commissionPercent={settings.transferDiscountPercent} creatorName={creator.displayName} slug={creator.slug} />
       </section>
     </main>
   );
