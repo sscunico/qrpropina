@@ -8,7 +8,6 @@ import {
   mercadoLibreApiBaseUrl,
   mercadoPagoApiBaseUrl,
   mercadoPagoAuthBaseUrl,
-  mercadoPagoClientId,
   useSandboxLink
 } from "@/lib/env";
 import { centsToPesos } from "@/lib/money";
@@ -144,15 +143,6 @@ export async function createMercadoPagoPreference({
 
   if (tip.platformFeeCents > 0) {
     body.marketplace_fee = centsToPesos(tip.platformFeeCents);
-  }
-
-  if (creator.mpUserId && !usingPlatformToken) {
-    (body as Record<string, unknown>).collector_id = parseInt(creator.mpUserId, 10);
-  }
-
-  const appId = mercadoPagoClientId();
-  if (appId) {
-    (body as Record<string, unknown>).marketplace = appId;
   }
 
   const mpPreferenceUrl = `${mercadoPagoApiBaseUrl()}/checkout/preferences`;
