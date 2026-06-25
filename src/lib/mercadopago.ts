@@ -447,6 +447,30 @@ export function verifyWebhookSignature(input: {
   );
 }
 
+export type MpPaymentData = {
+  netReceivedAmountCents: number | null;
+  totalPaidAmountCents: number | null;
+  moneyReleaseDate: string | null;
+};
+
+export function parseMpPaymentData(rawPayment: string | null): MpPaymentData {
+  if (!rawPayment) return { netReceivedAmountCents: null, totalPaidAmountCents: null, moneyReleaseDate: null };
+  try {
+    const payment = JSON.parse(rawPayment) as Record<string, unknown>;
+    const details = payment.transaction_details as Record<string, unknown> | undefined;
+    const net = details?.net_received_amount;
+    const total = details?.total_paid_amount;
+    const releaseDate = payment.money_release_date;
+    return {
+      netReceivedAmountCents: typeof net === "number" ? Math.round(net * 100) : null,
+      totalPaidAmountCents: typeof total === "number" ? Math.round(total * 100) : null,
+      moneyReleaseDate: typeof releaseDate === "string" ? releaseDate : null
+    };
+  } catch {
+    return { netReceivedAmountCents: null, totalPaidAmountCents: null, moneyReleaseDate: null };
+  }
+}
+
 export async function getPayment(paymentId: string, accessToken: string) {
   const client = createMercadoPagoSdkClient(accessToken);
   const paymentClient = new Payment(client);

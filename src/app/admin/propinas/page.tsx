@@ -6,6 +6,7 @@ import { DragScrollArea } from "@/components/DragScrollArea";
 import { getAdminSession } from "@/lib/auth";
 import { listApprovedTipsForCreator, listApprovedTipsWithCreators } from "@/lib/db";
 import { formatMoney, centsToPesos } from "@/lib/money";
+import { parseMpPaymentData } from "@/lib/mercadopago";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,9 @@ export default async function PropinasPage({ searchParams }: Props) {
                   </thead>
                   <tbody>
                     {items.map((tip) => {
-                      const receivedCents = tip.amountCents - tip.platformFeeCents;
+                      const mp = parseMpPaymentData(tip.rawPayment);
+                      const receivedCents = mp.netReceivedAmountCents ?? (tip.amountCents - tip.platformFeeCents);
+                      const isConfirmed = mp.netReceivedAmountCents !== null;
                       return (
                         <tr key={tip.id}>
                           <td>
@@ -91,7 +94,10 @@ export default async function PropinasPage({ searchParams }: Props) {
                             </div>
                           </td>
                           <td className="muted notif-date">{formatDate(tip.createdAt)}</td>
-                          <td className="tip-col-amount"><strong>{formatMoney(receivedCents)}</strong></td>
+                          <td className="tip-col-amount">
+                            <strong>{formatMoney(receivedCents)}</strong>
+                            {!isConfirmed && <span className="tip-amount-estimated"> est.</span>}
+                          </td>
                           <td className="tip-col-pct muted">{tip.creator.commissionPercent}%</td>
                           <td className="tip-col-fee muted">{formatMoney(tip.platformFeeCents)}</td>
                         </tr>
@@ -165,11 +171,16 @@ export default async function PropinasPage({ searchParams }: Props) {
                 </thead>
                 <tbody>
                   {items.map((tip) => {
-                    const receivedCents = tip.amountCents - tip.platformFeeCents;
+                    const mp = parseMpPaymentData(tip.rawPayment);
+                    const receivedCents = mp.netReceivedAmountCents ?? (tip.amountCents - tip.platformFeeCents);
+                    const isConfirmed = mp.netReceivedAmountCents !== null;
                     return (
                       <tr key={tip.id}>
                         <td className="muted notif-date">{formatDate(tip.createdAt)}</td>
-                        <td className="tip-col-amount"><strong>{formatMoney(receivedCents)}</strong></td>
+                        <td className="tip-col-amount">
+                          <strong>{formatMoney(receivedCents)}</strong>
+                          {!isConfirmed && <span className="tip-amount-estimated"> est.</span>}
+                        </td>
                       </tr>
                     );
                   })}
