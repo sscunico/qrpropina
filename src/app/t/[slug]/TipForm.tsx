@@ -74,7 +74,7 @@ export function TipForm({ slug, creatorName, commissionPercent }: Props) {
           <ChevronLeft size={16} />
           Cambiar monto
         </button>
-        <MercadoPagoButton amount={amount} href={checkoutUrl}>
+        <MercadoPagoButton amount={grossAmount} href={checkoutUrl}>
           <MercadoPagoButtonSlot />
         </MercadoPagoButton>
       </div>
