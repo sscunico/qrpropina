@@ -139,18 +139,18 @@ export function TipForm({ slug, creatorName, commissionPercent }: Props) {
         {commissionPercent > 0 && amount >= 100 && (
           <div className="fee-breakdown">
             <div className="fee-row">
-              <span>Propina para {creatorName}</span>
+              <span>Propina</span>
               <span>${amount.toLocaleString("es-AR")}</span>
             </div>
             <div className="fee-row">
-              <span>Comisión de plataforma ({commissionPercent}%)</span>
+              <span>Tarifa del servicio ({commissionPercent}%)</span>
               <span>+${platformFee.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div className="fee-row fee-total">
               <strong>Total a pagar</strong>
               <strong>${grossAmount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
             </div>
-            <p className="fee-note">Mercado Pago puede aplicar comisiones adicionales según el método de pago seleccionado.</p>
+            <p className="fee-note">Las comisiones de Mercado Pago se descuentan del monto que recibe {creatorName}.</p>
           </div>
         )}
       </div>
