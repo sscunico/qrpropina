@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { addPaymentEvent, getTipWithCreator, updateTipFromPayment } from "@/lib/db";
+import { addPaymentEvent, createNotificationRecord, getTipWithCreator, updateTipFromPayment } from "@/lib/db";
 import { getCreatorAccessToken, getPayment, verifyWebhookSignature } from "@/lib/mercadopago";
+import { centsToPesos } from "@/lib/money";
 
 type MercadoPagoWebhookPayload = {
   action?: string;
@@ -89,6 +90,15 @@ export async function POST(request: Request) {
       status: payment.status,
       rawPayment: JSON.stringify(payment)
     });
+
+    if (updatedTip && payment.status === "approved") {
+      const amount = centsToPesos(updatedTip.amountCents - updatedTip.platformFeeCents);
+      void createNotificationRecord({
+        creatorId: updatedTip.creatorId,
+        title: "¡Recibiste una propina!",
+        body: `Te acreditaron $${amount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} en tu cuenta de Mercado Pago.`
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       ok: true,

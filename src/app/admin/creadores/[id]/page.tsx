@@ -144,7 +144,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
               Volver
             </Link>
           ) : null}
-          {showMercadoPagoIntegration && !isAdmin ? (
+          {showMercadoPagoIntegration && !isAdmin && (!sellerIsConnected(creator) || activeSection === "mercadopago") ? (
             <>
               {sellerIsConnected(creator) ? (
                 <div className="mp-button-row">

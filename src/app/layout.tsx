@@ -25,9 +25,9 @@ export const metadata: Metadata = {
   title: appName(),
   description: "qrpropina: propinas por QR con Mercado Pago",
   icons: {
-    icon: "/icon.png",
-    shortcut: "/icon.png",
-    apple: "/app-icon.png"
+    icon: "/app-icon.png?v=2",
+    shortcut: "/app-icon.png?v=2",
+    apple: "/app-icon.png?v=2"
   }
 };
 

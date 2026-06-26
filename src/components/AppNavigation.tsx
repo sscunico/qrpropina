@@ -77,7 +77,7 @@ function ProfileAvatar({ className, label, picture }: { className: string; label
 }
 
 function isTipRoute(pathname: string) {
-  return pathname.startsWith("/t/") || pathname.startsWith("/q/");
+  return pathname.startsWith("/t/") || pathname.startsWith("/q/") || pathname.startsWith("/pago/");
 }
 
 export function AppNavigation({ appName, session, showMercadoPagoIntegration = true, unreadCount = 0 }: Props) {
@@ -236,6 +236,9 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
         <div className="topbar-actions">
           {session ? (
             <>
+              <Link className="icon-button ghost" href="/" title="Inicio">
+                <Home size={19} />
+              </Link>
               <Link className="icon-button ghost bell-btn" href="/admin/notificaciones" title="Notificaciones">
                 <span className="bell-wrapper">
                   <Bell size={19} />

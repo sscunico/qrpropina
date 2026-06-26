@@ -75,7 +75,7 @@ export default async function HomePage({ searchParams }: Props) {
         <div className="landing-feature">
           <BadgePercent size={22} />
           <h2>Comisión</h2>
-          <p className="muted">Definís el porcentaje de plataforma por cada creador.</p>
+          <p className="muted">Configurás cuánto retiene la plataforma por cada propina recibida.</p>
         </div>
         <div className="landing-feature">
           <Smartphone size={22} />

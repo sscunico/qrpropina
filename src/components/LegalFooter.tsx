@@ -13,7 +13,7 @@ const legalLinks = [
 
 export function LegalFooter() {
   const pathname = usePathname();
-  if (pathname.startsWith("/t/") || pathname.startsWith("/q/")) {
+  if (pathname.startsWith("/t/") || pathname.startsWith("/q/") || pathname.startsWith("/pago/")) {
     return null;
   }
 

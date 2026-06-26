@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, Loader2 } from "lucide-react";
-import { MercadoPagoButton } from "@/components/MercadoPagoButton";
-import { MercadoPagoButtonSlot } from "@/components/MercadoPagoButtonSlot";
+import { Loader2 } from "lucide-react";
 import { DEFAULT_AMOUNTS } from "@/lib/money";
 
 type Props = {
@@ -12,13 +10,12 @@ type Props = {
   commissionPercent: number;
 };
 
-export function TipForm({ slug, creatorName, commissionPercent }: Props) {
+export function TipForm({ slug, commissionPercent }: Props) {
   const [selectedAmount, setSelectedAmount] = useState(DEFAULT_AMOUNTS[3]);
   const [customAmount, setCustomAmount] = useState("");
   const [payerEmail, setPayerEmail] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const amount = useMemo(() => {
     const parsed = Number(customAmount);
@@ -51,36 +48,13 @@ export function TipForm({ slug, creatorName, commissionPercent }: Props) {
         throw new Error(data.error || "No se pudo iniciar el pago.");
       }
 
-      const isDemo = data.checkoutUrl.includes("/pago/demo");
-      if (isDemo) {
-        window.location.assign(data.checkoutUrl);
-        return;
-      }
-
-      setCheckoutUrl(data.checkoutUrl);
-      setIsLoading(false);
+      window.location.assign(data.checkoutUrl);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "No se pudo iniciar el pago.");
       setIsLoading(false);
     }
   }
 
-  // Step 2: show official-style MP button
-  if (checkoutUrl) {
-    return (
-      <div className="tip-body">
-        <button className="tip-back-link" onClick={() => { setCheckoutUrl(null); setError(""); }} type="button">
-          <ChevronLeft size={16} />
-          Cambiar monto
-        </button>
-        <MercadoPagoButton amount={grossAmount} href={checkoutUrl}>
-          <MercadoPagoButtonSlot />
-        </MercadoPagoButton>
-      </div>
-    );
-  }
-
-  // Step 1: amount selector
   return (
     <div className="tip-body">
       <h2>Elegir monto</h2>
@@ -133,7 +107,7 @@ export function TipForm({ slug, creatorName, commissionPercent }: Props) {
           type="button"
         >
           {isLoading ? <Loader2 size={18} /> : null}
-          {isLoading ? "Generando pago..." : `Continuar con $${grossAmount.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+          {isLoading ? "Generando pago..." : `Pagar $${grossAmount.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
         </button>
         {commissionPercent > 0 && amount >= 100 && (
           <div className="fee-breakdown">
