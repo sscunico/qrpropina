@@ -768,8 +768,20 @@ body.drawer-open {
   color: var(--accent);
 }
 
+.landing-feature-icon {
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.landing-feature-logo {
+  width: 80px;
+  height: 40px;
+  object-fit: cover;
+}
+
 .landing-feature h2 {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .landing-strip {

@@ -4,6 +4,7 @@ import { resetColorOverrides, saveColorOverrides, setMercadoPagoIntegrationVisib
 import { PercentStepper } from "@/components/PercentStepper";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { EnvVarsSection } from "@/components/EnvVarsSection";
+import { DeployAlert } from "@/components/DeployAlert";
 import { getAdminSession } from "@/lib/auth";
 import { getAppSettings } from "@/lib/db";
 import { appUrl } from "@/lib/env";
@@ -78,6 +79,8 @@ export default async function AdminSettingsPage() {
           <p className="muted">Controla funciones visibles del panel mientras hacés pruebas.</p>
         </div>
       </section>
+
+      <DeployAlert commitSha={process.env.NEXT_PUBLIC_COMMIT_SHA ?? "unknown"} />
 
       <div className="settings-stack">
         <section className="panel settings-panel">

@@ -63,24 +63,34 @@ export default async function HomePage({ searchParams }: Props) {
 
       <section className="landing-band" aria-label="Beneficios">
         <div className="landing-feature">
-          <QrCode size={22} />
-          <h2>QR por creador</h2>
-          <p className="muted">Un link público para cada persona, listo para imprimir o compartir.</p>
+          <div className="landing-feature-icon"><QrCode size={22} /></div>
+          <div>
+            <h2>QR por creador</h2>
+            <p className="muted">Un link público para cada persona, listo para imprimir o compartir.</p>
+          </div>
         </div>
         <div className="landing-feature">
-          <img className="landing-feature-logo" src="/mp-logo.svg" alt="Mercado Pago" />
-          <h2>Mercado Pago</h2>
-          <p className="muted">Preparado para conectar cuentas y cobrar con checkout seguro.</p>
+          <div className="landing-feature-icon">
+            <img className="landing-feature-logo" src="/mp-logo.svg" alt="Mercado Pago" />
+          </div>
+          <div>
+            <h2>Mercado Pago</h2>
+            <p className="muted">Preparado para conectar cuentas y cobrar con checkout seguro.</p>
+          </div>
         </div>
         <div className="landing-feature">
-          <BadgePercent size={22} />
-          <h2>Comisión</h2>
-          <p className="muted">Configurás cuánto retiene la plataforma por cada propina recibida.</p>
+          <div className="landing-feature-icon"><BadgePercent size={22} /></div>
+          <div>
+            <h2>Comisión</h2>
+            <p className="muted">Configurás cuánto retiene la plataforma por cada propina recibida.</p>
+          </div>
         </div>
         <div className="landing-feature">
-          <Smartphone size={22} />
-          <h2>Sin app nativa</h2>
-          <p className="muted">Funciona desde la cámara del celular y el navegador.</p>
+          <div className="landing-feature-icon"><Smartphone size={22} /></div>
+          <div>
+            <h2>Sin app nativa</h2>
+            <p className="muted">Funciona desde la cámara del celular y el navegador.</p>
+          </div>
         </div>
       </section>
 
