@@ -1,10 +1,10 @@
 import mysql from "mysql2/promise";
 
 const BASE_CONFIG = {
-  port: 3306,
-  database: "u758723351_QRP",
-  user: "u758723351_sscunico",
-  password: "jBx*@CV6%;yGNG8",
+  port: parseInt(process.env.DB_PORT || "3306", 10),
+  database: process.env.DB_DATABASE,
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
   connectTimeout: 5000,
 };
 
@@ -32,8 +32,7 @@ export async function testMySQLConnection(): Promise<{
   }
 
   const hosts = [
-    process.env.MYSQL_HOST || "auth-db627.hstgr.io",
-    "localhost",
+    process.env.DB_HOST || "localhost",
     "127.0.0.1",
   ].filter((h, i, arr) => h && arr.indexOf(h) === i);
 

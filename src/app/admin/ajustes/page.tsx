@@ -32,11 +32,11 @@ const ENV_VARS: { key: string; label: string; sensitive: boolean; group: string 
   { key: "NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY", label: "Public key",          sensitive: true,  group: "Mercado Pago" },
   { key: "MERCADOPAGO_ACCESS_TOKEN",           label: "Access token",        sensitive: true,  group: "Mercado Pago" },
   { key: "MERCADOPAGO_CLIENT_SECRET",          label: "Client secret",       sensitive: true,  group: "Mercado Pago" },
-  { key: "MYSQL_HOST",                         label: "Host",                sensitive: false, group: "MySQL" },
-  { key: "MYSQL_PORT",                         label: "Puerto",              sensitive: false, group: "MySQL" },
-  { key: "MYSQL_DATABASE",                     label: "Base de datos",       sensitive: false, group: "MySQL" },
-  { key: "MYSQL_USER",                         label: "Usuario",             sensitive: false, group: "MySQL" },
-  { key: "MYSQL_PASSWORD",                     label: "Contraseña",          sensitive: true,  group: "MySQL" },
+  { key: "DB_HOST",                             label: "Host",                sensitive: false, group: "MySQL" },
+  { key: "DB_PORT",                             label: "Puerto",              sensitive: false, group: "MySQL" },
+  { key: "DB_DATABASE",                         label: "Base de datos",       sensitive: false, group: "MySQL" },
+  { key: "DB_USERNAME",                         label: "Usuario",             sensitive: false, group: "MySQL" },
+  { key: "DB_PASSWORD",                         label: "Contraseña",          sensitive: true,  group: "MySQL" },
 ];
 
 const BRAND_COLORS = [
