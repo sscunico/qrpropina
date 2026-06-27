@@ -2200,7 +2200,7 @@ h3 {
 }
 
 .qr-popup--info .qr-popup-icon-wrap {
-  color: var(--accent);
+  color: var(--coral, #ff6b6b);
 }
 
 /* Preview modal del QR */
@@ -2610,7 +2610,38 @@ h3 {
   gap: 16px;
 }
 
+.qr-item-delete-form {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+}
+
+.qr-item-delete-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--danger, #dc3545);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: background 0.15s;
+}
+
+.qr-item-delete-btn:hover {
+  background: #fff;
+}
+
+.table-scroll-wrap {
+  overflow-x: auto;
+  width: 100%;
+}
+
 .qr-item {
+  position: relative;
   display: grid;
   gap: 14px;
   border: 1px solid var(--line);

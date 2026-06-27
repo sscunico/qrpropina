@@ -52,6 +52,7 @@ export default async function NotificacionesPage({ searchParams }: Props) {
           </div>
         ) : (
           <>
+            <div className="table-scroll-wrap">
             <table className="table">
               <thead>
                 <tr>
@@ -112,6 +113,7 @@ export default async function NotificacionesPage({ searchParams }: Props) {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {totalPages > 1 ? (
               <div className="pagination">

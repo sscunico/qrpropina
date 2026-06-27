@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   ArrowLeft,
   BadgePercent,
@@ -133,12 +133,22 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
   const showNewUserBanner =
     !isAdmin &&
     session?.role === "creator" &&
-    (!creator.locationName || !creator.role || creator.role === "Creador" || creator.qrCodes.length === 0) &&
+    (
+      !creator.locationName ||
+      !creator.role ||
+      creator.role === "Creador" ||
+      creator.qrCodes.length === 0 ||
+      (showMercadoPagoIntegration && !sellerIsConnected(creator))
+    ) &&
     !bothChecklistDone;
+
+  if (!isAdmin && mp === "connected" && creator.qrCodes.length === 0) {
+    redirect(`${creatorHref}?mp=connected&section=qrs`);
+  }
 
   return (
     <main className="page">
-      <section className={showMercadoPagoIntegration && !isAdmin ? "hero-row hero-row--split" : "hero-row"}>
+      <section className={!isAdmin ? "hero-row hero-row--split" : "hero-row"}>
         <div>
           <p className="kicker">{sectionTitle[activeSection]}</p>
           <h1>{creator.displayName}</h1>
@@ -328,27 +338,33 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
 
                 return (
                   <article className="qr-item" key={item.id}>
-                    <div className="qr-item-header">
-                      <div className="qr-item-title">
-                        <p className="kicker">ID del QR</p>
-                        <h3>{item.qrId}</h3>
-                        <div className="qr-url-row">
-                          <code>{item.url}</code>
-                          <CopyLinkButton iconOnly value={item.url} />
-                          <a
-                            aria-label="Abrir en nueva pestaña"
-                            className="button secondary icon-only"
-                            href={item.url}
-                            rel="noreferrer"
-                            target="_blank"
-                            title="Abrir en nueva pestaña"
-                          >
-                            <ExternalLink size={15} />
-                          </a>
+                    <form action={deleteQrWithId} className="qr-item-delete-form">
+                      <button aria-label="Eliminar QR" className="qr-item-delete-btn" title="Eliminar" type="submit">
+                        <Trash2 size={15} />
+                      </button>
+                    </form>
+
+                    {isAdmin ? (
+                      <div className="qr-item-header">
+                        <div className="qr-item-title">
+                          <p className="kicker">ID del QR</p>
+                          <h3>{item.qrId}</h3>
+                          <div className="qr-url-row">
+                            <code>{item.url}</code>
+                            <CopyLinkButton iconOnly value={item.url} />
+                            <a
+                              aria-label="Abrir en nueva pestaña"
+                              className="button secondary icon-only"
+                              href={item.url}
+                              rel="noreferrer"
+                              target="_blank"
+                              title="Abrir en nueva pestaña"
+                            >
+                              <ExternalLink size={15} />
+                            </a>
+                          </div>
                         </div>
-                      </div>
-                      <div className="qr-item-actions">
-                        {isAdmin ? (
+                        <div className="qr-item-actions">
                           <Link
                             className="button secondary"
                             href={`${qrsHref}&editQr=${item.id}#qr-editor`}
@@ -356,15 +372,9 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                             <Pencil size={17} />
                             Editar
                           </Link>
-                        ) : null}
-                        <form action={deleteQrWithId}>
-                          <button className="button danger" type="submit">
-                            <Trash2 size={17} />
-                            Eliminar
-                          </button>
-                        </form>
+                        </div>
                       </div>
-                    </div>
+                    ) : null}
 
                     <QrPreviewButton qrId={item.qrId} image={item.image} />
 
@@ -584,14 +594,6 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                 <span className="muted">Sitio / país</span>
                 <strong>{[creator.mpSiteId, creator.mpCountryId].filter(Boolean).join(" / ") || "No informado"}</strong>
               </div>
-              {creator.mpPermalink ? (
-                <div className="storage-row">
-                  <span className="muted">Perfil</span>
-                  <a href={creator.mpPermalink} target="_blank" rel="noreferrer">
-                    {creator.mpPermalink}
-                  </a>
-                </div>
-              ) : null}
             </div>
 
             {isAdmin ? (

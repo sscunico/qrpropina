@@ -204,13 +204,11 @@ export function QrScanner({ claimAction, existingQrIds }: Props) {
               <div className="qr-popup-icon-wrap">
                 {popup.type === "success"
                   ? <CheckCircle2 size={36} />
-                  : popup.type === "info"
-                  ? <Info size={36} />
                   : <AlertTriangle size={36} />}
               </div>
               <div className="qr-popup-body">
                 <strong className="qr-popup-title">
-                  {popup.type === "success" ? "¡QR nuevo registrado!" : popup.type === "info" ? "QR ya registrado" : "QR no disponible"}
+                  {popup.type === "success" ? "¡QR nuevo registrado!" : popup.type === "info" ? "QR ya en tu lista" : "QR no disponible"}
                 </strong>
                 {popup.qrId ? <span className="qr-popup-id">{popup.qrId}</span> : null}
                 <p className="qr-popup-msg">{popup.message}</p>
