@@ -1,10 +1,10 @@
 import mysql from "mysql2/promise";
 
 const BASE_CONFIG = {
-  port: parseInt(process.env.MYSQL_PORT || "3306", 10),
-  database: process.env.MYSQL_DATABASE,
-  user: process.env.MYSQL_USER,
-  password: process.env.MYSQL_PASSWORD,
+  port: 3306,
+  database: "u758723351_QRP",
+  user: "u758723351_sscunico",
+  password: "jBx*@CV6%;yGNG8",
   connectTimeout: 5000,
 };
 
