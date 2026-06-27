@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import {
+  claimCreatorQr,
   createCreatorQr,
   deleteCreatorQr,
   disconnectMercadoPago,
@@ -22,11 +23,16 @@ import {
   updateCreator,
   updateCreatorMercadoPagoAlias,
   updateCreatorProfile,
-  updateCreatorQr
+  updateCreatorQr,
+  updateCreatorSocials,
+  updateCreatorThankYou
 } from "@/app/admin/actions";
 import { CopyLinkButton } from "@/app/admin/creadores/[id]/CopyLinkButton";
 import { MercadoPagoAlertButton } from "@/app/admin/creadores/[id]/MercadoPagoAlertButton";
 import { QrIdForm } from "@/app/admin/creadores/[id]/QrIdForm";
+import { ThankYouEditor } from "@/app/admin/creadores/[id]/ThankYouEditor";
+import { QrPreviewButton } from "@/app/admin/creadores/[id]/QrPreviewButton";
+import { QrScanner } from "@/app/admin/creadores/[id]/QrScanner";
 import { getAdminSession } from "@/lib/auth";
 import { getAppSettings, getCreatorWithTips, isApprovedTip } from "@/lib/db";
 import { appUrl } from "@/lib/env";
@@ -34,7 +40,7 @@ import { formatMoney } from "@/lib/money";
 import { sellerIsConnected } from "@/lib/mercadopago";
 import { qrDataUrl } from "@/lib/qrcode";
 
-type CreatorSection = "qrs" | "perfil" | "mercadopago" | "propinas";
+type CreatorSection = "qrs" | "perfil" | "mercadopago" | "propinas" | "redes";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -49,7 +55,7 @@ type Props = {
 export const dynamic = "force-dynamic";
 
 function normalizeSection(value?: string): CreatorSection {
-  if (value === "perfil" || value === "mercadopago" || value === "propinas" || value === "qrs") {
+  if (value === "perfil" || value === "mercadopago" || value === "propinas" || value === "qrs" || value === "redes") {
     return value;
   }
 
@@ -86,12 +92,13 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
   const activeSection =
     (requestedSection === "mercadopago" || requestedSection === "propinas") && !showMercadoPagoIntegration
       ? "qrs"
-      : requestedSection;
+      : requestedSection as CreatorSection;
   const sectionTitle: Record<CreatorSection, string> = {
     qrs: "Mi QR",
     perfil: "Mi perfil",
     mercadopago: "Mercado Pago",
-    propinas: "Propinas"
+    propinas: "Propinas",
+    redes: "Redes y Mensaje"
   };
 
   const qrItems = await Promise.all(
@@ -112,17 +119,22 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
   const updateWithId = updateCreator.bind(null, creator.id);
   const updateProfileWithId = updateCreatorProfile.bind(null, creator.id);
   const updateMpAliasWithId = updateCreatorMercadoPagoAlias.bind(null, creator.id);
+  const updateSocialsWithId = updateCreatorSocials.bind(null, creator.id);
+  const updateThankYouWithId = updateCreatorThankYou.bind(null, creator.id);
   const disconnectMpWithId = disconnectMercadoPago.bind(null, creator.id);
   const toggleWithId = toggleCreator.bind(null, creator.id, !creator.isActive);
   const createQrWithId = createCreatorQr.bind(null, creator.id);
+  const claimQrWithId = claimCreatorQr.bind(null, creator.id);
   const selectedQr = editQr ? qrItems.find((item) => item.id === editQr) : null;
   const selectedQrAction = selectedQr
     ? updateCreatorQr.bind(null, creator.id, selectedQr.id)
     : createQrWithId;
+  const bothChecklistDone = creator.qrCodes.length > 0 && sellerIsConnected(creator);
   const showNewUserBanner =
     !isAdmin &&
     session?.role === "creator" &&
-    (!creator.locationName || !creator.role || creator.role === "Creador" || creator.qrCodes.length === 0);
+    (!creator.locationName || !creator.role || creator.role === "Creador" || creator.qrCodes.length === 0) &&
+    !bothChecklistDone;
 
   return (
     <main className="page">
@@ -186,20 +198,39 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
       {showNewUserBanner ? (
         <section className="onboarding-banner">
           <div>
-            <p className="kicker">Usuario nuevo</p>
-            <h2>Completa tus datos para empezar a recibir propinas</h2>
+            <p className="kicker">¡Bienvenido!</p>
+            <h2>Ya casi podés recibir propinas</h2>
             <p>
-              Primero carga tu nombre visible, alias, actividad y lugar. Después creá tu primer QR,
-              descargalo y compartilo o imprimilo para que tus clientes puedan pagar desde el celular.
-              También necesitás integrar tu cuenta de Mercado Pago: sin esa conexión los pagos no se
-              acreditan en tu billetera. <InfoTooltip text="La integración con Mercado Pago vincula tu cuenta para que cada propina que recibas por QR se deposite automáticamente en tu billetera de MP. Se hace una sola vez desde el botón de integración y es totalmente seguro." position="right" />
+              Para empezar a cobrar necesitás dos cosas: registrar al menos un <strong>QR</strong> —
+              lo descargás, imprimís y tus clientes lo escanean para pagarte — e integrar tu cuenta de{" "}
+              <strong>Mercado Pago</strong> para que cada propina se acredite directo en tu billetera.
             </p>
           </div>
-          <div className="banner-actions">
-            <Link className="button primary" href={`${qrsHref}#qr-editor`}>
-              <QrCode size={17} />
-              Crear
-            </Link>
+
+          <div className="banner-checklist">
+            <div className={`banner-check-item${creator.qrCodes.length > 0 ? " done" : ""}`}>
+              <span className="banner-check-icon">
+                {creator.qrCodes.length > 0
+                  ? <CheckCircle2 size={22} />
+                  : <span className="banner-check-empty" />}
+              </span>
+              <div>
+                <strong>QR registrado</strong>
+                <p>{creator.qrCodes.length > 0 ? "Listo" : "Todavía no tenés ningún QR"}</p>
+              </div>
+            </div>
+
+            <div className={`banner-check-item${sellerIsConnected(creator) ? " done" : ""}`}>
+              <span className="banner-check-icon">
+                {sellerIsConnected(creator)
+                  ? <CheckCircle2 size={22} />
+                  : <span className="banner-check-empty" />}
+              </span>
+              <div>
+                <strong>Mercado Pago</strong>
+                <p>{sellerIsConnected(creator) ? "Cuenta conectada" : "Sin integrar aún"}</p>
+              </div>
+            </div>
           </div>
         </section>
       ) : null}
@@ -226,52 +257,69 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
           <section className="panel" id="qrs">
             <div className="section-row">
               <div>
-                <h2>Crear / editar QR <InfoTooltip text="Cada QR tiene un ID único que genera una URL del tipo /q/id. Los clientes escanean ese QR para hacer la propina." /></h2>
+                <h2>
+                  {isAdmin ? (
+                    "Crear / editar QR"
+                  ) : (
+                    <span className="section-title-with-icon">
+                      <QrCode aria-hidden="true" size={22} />
+                      <span>Escanear QR</span>
+                    </span>
+                  )}
+                  {" "}
+                  <InfoTooltip text="Cada QR tiene un ID único que genera una URL del tipo /q/id. Los clientes escanean ese QR para hacer la propina." />
+                </h2>
                 <p className="muted">
-                  {selectedQr
-                    ? "Edita el ID de este QR. La URL se actualiza automaticamente."
-                    : "Crea un ID unico para generar una URL del tipo /q/id."}
+                  {isAdmin
+                    ? (selectedQr ? "Edita el ID de este QR. La URL se actualiza automaticamente." : "Crea un ID unico para generar una URL del tipo /q/id.")
+                    : "Escaneá un QR de nuestra plataforma para registrarlo en tu cuenta."}
                 </p>
               </div>
               <span className="pill">{creator.qrCodes.length}/30 QR <InfoTooltip text="Podés tener hasta 30 QR distintos. Útil para tener uno por mesa, zona o canal." /></span>
             </div>
 
-            <div className="qr-editor" id="qr-editor">
-              {selectedQr || creator.qrCodes.length < 30 ? (
-                <>
-                  {selectedQr ? (
-                    <div className="message compact">
-                      Editando <strong>{selectedQr.qrId}</strong>
-                    </div>
-                  ) : null}
-                  <QrIdForm
-                    key={selectedQr?.id ?? "create"}
-                    className="form qr-create-form"
-                    defaultValue={selectedQr?.qrId ?? ""}
-                    exceptRecordId={selectedQr?.id}
-                    formAction={selectedQrAction}
-                    inputId="qrEditorId"
-                    submitLabel={selectedQr ? "Guardar cambios" : "Crear QR"}
-                    submitStyle={selectedQr ? "secondary" : "primary"}
-                    cancelHref={selectedQr ? `${qrsHref}#qr-editor` : undefined}
-                  />
-                </>
-              ) : (
-                <div className="message">Este creador ya tiene el máximo de 30 QR.</div>
-              )}
-            </div>
+            {isAdmin ? (
+              <div className="qr-editor" id="qr-editor">
+                {selectedQr || creator.qrCodes.length < 30 ? (
+                  <>
+                    {selectedQr ? (
+                      <div className="message compact">
+                        Editando <strong>{selectedQr.qrId}</strong>
+                      </div>
+                    ) : null}
+                    <QrIdForm
+                      key={selectedQr?.id ?? "create"}
+                      className="form qr-create-form"
+                      defaultValue={selectedQr?.qrId ?? ""}
+                      exceptRecordId={selectedQr?.id}
+                      formAction={selectedQrAction}
+                      inputId="qrEditorId"
+                      submitLabel={selectedQr ? "Guardar cambios" : "Crear QR"}
+                      submitStyle={selectedQr ? "secondary" : "primary"}
+                      cancelHref={selectedQr ? `${qrsHref}#qr-editor` : undefined}
+                    />
+                  </>
+                ) : (
+                  <div className="message">Este creador ya tiene el máximo de 30 QR.</div>
+                )}
+              </div>
+            ) : creator.qrCodes.length < 30 ? (
+              <QrScanner claimAction={claimQrWithId} existingQrIds={creator.qrCodes.map((q) => q.qrId)} />
+            ) : (
+              <div className="message">Ya tenés el máximo de 30 QR registrados.</div>
+            )}
 
             <div className="section-row qr-grid-heading">
               <div>
-                <h2>QR creados</h2>
-                <p className="muted">Usa Editar para llevar el QR al formulario superior.</p>
+                <h2>QR registrados</h2>
+                {isAdmin ? <p className="muted">Usa Editar para llevar el QR al formulario superior.</p> : null}
               </div>
             </div>
 
             <div className="qr-list">
               {qrItems.length === 0 ? (
                 <div className="message">
-                  Todavia no hay QR creados. Crea el primer ID para generar su URL.
+                  Todavia no hay QR registrados. {isAdmin ? "Crea el primer ID para generar su URL." : "Escaneá un QR para registrarlo."}
                 </div>
               ) : null}
 
@@ -300,13 +348,15 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                         </div>
                       </div>
                       <div className="qr-item-actions">
-                        <Link
-                          className="button secondary"
-                          href={`${qrsHref}&editQr=${item.id}#qr-editor`}
-                        >
-                          <Pencil size={17} />
-                          Editar
-                        </Link>
+                        {isAdmin ? (
+                          <Link
+                            className="button secondary"
+                            href={`${qrsHref}&editQr=${item.id}#qr-editor`}
+                          >
+                            <Pencil size={17} />
+                            Editar
+                          </Link>
+                        ) : null}
                         <form action={deleteQrWithId}>
                           <button className="button danger" type="submit">
                             <Trash2 size={17} />
@@ -316,9 +366,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                       </div>
                     </div>
 
-                    <div className="qr-large">
-                      <img alt={`QR ${item.qrId}`} src={item.image} />
-                    </div>
+                    <QrPreviewButton qrId={item.qrId} image={item.image} />
 
                     <div className="qr-item-footer">
                       <a className="button primary" href={item.image} download={`${item.qrId}-qr.png`}>
@@ -433,9 +481,67 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                   </button>
                 </div>
               </form>
-
             </section>
           )
+        ) : null}
+
+        {activeSection === "redes" ? (
+          <>
+            <section className="panel">
+              <h2>Redes sociales</h2>
+              <p className="muted">Tus links aparecen en tu página pública para que tus clientes te sigan.</p>
+              <form action={updateSocialsWithId} className="form">
+                <div className="form-grid">
+                  <div className="field">
+                    <label htmlFor="instagram">Instagram</label>
+                    <input id="instagram" name="instagram" placeholder="https://instagram.com/tu-usuario" defaultValue={creator.socialLinks?.instagram || ""} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="tiktok">TikTok</label>
+                    <input id="tiktok" name="tiktok" placeholder="https://tiktok.com/@tu-usuario" defaultValue={creator.socialLinks?.tiktok || ""} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="x">X / Twitter</label>
+                    <input id="x" name="x" placeholder="https://x.com/tu-usuario" defaultValue={creator.socialLinks?.x || ""} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="facebook">Facebook</label>
+                    <input id="facebook" name="facebook" placeholder="https://facebook.com/tu-pagina" defaultValue={creator.socialLinks?.facebook || ""} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="youtube">YouTube</label>
+                    <input id="youtube" name="youtube" placeholder="https://youtube.com/@tu-canal" defaultValue={creator.socialLinks?.youtube || ""} />
+                  </div>
+                </div>
+                <div>
+                  <button className="button primary" type="submit">
+                    <CheckCircle2 size={17} />
+                    Guardar redes
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            <section className="panel">
+              <h2>Mensaje de agradecimiento</h2>
+              <p className="muted">Este mensaje aparece en la pantalla de confirmación después de que alguien te manda una propina. Máximo 200 caracteres.</p>
+              <form action={updateThankYouWithId} className="form">
+                <div className="field">
+                  <label htmlFor="thankYouMessage">Mensaje</label>
+                  <ThankYouEditor
+                    defaultValue={creator.thankYouMessage || ""}
+                    name="thankYouMessage"
+                  />
+                </div>
+                <div>
+                  <button className="button primary" type="submit">
+                    <CheckCircle2 size={17} />
+                    Guardar mensaje
+                  </button>
+                </div>
+              </form>
+            </section>
+          </>
         ) : null}
 
         {showMercadoPagoIntegration && activeSection === "mercadopago" ? (
@@ -460,10 +566,6 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
             </div>
 
             <div className="storage-list mp-account-summary">
-              <div className="storage-row">
-                <span className="muted">Usuario MP</span>
-                <strong>{creator.mpUserId || "Sin conectar"}</strong>
-              </div>
               <div className="storage-row">
                 <span className="muted">Alias detectado</span>
                 <strong>{creator.mpNickname || "Sin datos"}</strong>

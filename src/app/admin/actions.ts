@@ -1,5 +1,6 @@
 "use server";
 
+import sanitizeHtml from "sanitize-html";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -21,6 +22,8 @@ import {
   updateCreatorMercadoPagoAliasRecord,
   updateCreatorProfileRecord,
   updateCreatorRecord,
+  updateCreatorSocialsRecord,
+  updateCreatorThankYouRecord,
   updateQrCodeRecord
 } from "@/lib/db";
 import { qrDataUrl } from "@/lib/qrcode";
@@ -196,6 +199,40 @@ export async function resetColorOverrides() {
   revalidatePath("/admin/ajustes");
 }
 
+export async function claimCreatorQr(creatorId: string, qrId: string) {
+  await requireQrAccess(creatorId);
+
+  const qrIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+
+  let validatedId: string;
+  try {
+    validatedId = qrIdSchema.parse(qrId);
+    await createQrCodeRecord({ creatorId, qrId: validatedId });
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "No se pudo registrar el QR.");
+    return;
+  }
+
+  try {
+    const creator = await getCreatorWithTips(creatorId, 0);
+    if (creator) {
+      const qrUrl = `${appUrl()}/q/${validatedId}`;
+      const imageUrl = await qrDataUrl(qrUrl);
+      await createNotificationRecord({
+        creatorId: ADMIN_NOTIFICATIONS_ID,
+        title: `${creator.displayName} registró un QR por escaneo`,
+        body: validatedId,
+        photoUrl: creator.photoUrl,
+        imageUrl
+      });
+    }
+  } catch {
+    // notificación no crítica
+  }
+
+  revalidatePath(`/admin/creadores/${creatorId}`);
+}
+
 export async function createCreatorQr(creatorId: string, formData: FormData) {
   await requireQrAccess(creatorId);
 
@@ -250,10 +287,11 @@ export async function updateCreatorQr(creatorId: string, recordId: string, formD
 export async function deleteCreatorQr(creatorId: string, recordId: string) {
   await requireQrAccess(creatorId);
 
-  await deleteQrCodeRecord({
-    creatorId,
-    recordId
-  });
+  try {
+    await deleteQrCodeRecord({ creatorId, recordId });
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "No se pudo eliminar el QR.");
+  }
 
   revalidatePath(`/admin/creadores/${creatorId}`);
 }
@@ -265,6 +303,39 @@ export async function disconnectMercadoPago(creatorId: string) {
   }
 
   await disconnectCreatorMercadoPagoRecord(creatorId);
+  revalidatePath(`/admin/creadores/${creatorId}`);
+}
+
+export async function updateCreatorSocials(creatorId: string, formData: FormData) {
+  const session = await requireUser();
+  if (session.role !== "admin" && session.creatorId !== creatorId) {
+    redirect("/admin");
+  }
+
+  await updateCreatorSocialsRecord(creatorId, {
+    instagram: (formData.get("instagram") as string) || null,
+    tiktok: (formData.get("tiktok") as string) || null,
+    x: (formData.get("x") as string) || null,
+    facebook: (formData.get("facebook") as string) || null,
+    youtube: (formData.get("youtube") as string) || null
+  });
+
+  revalidatePath(`/admin/creadores/${creatorId}`);
+}
+
+export async function updateCreatorThankYou(creatorId: string, formData: FormData) {
+  const session = await requireUser();
+  if (session.role !== "admin" && session.creatorId !== creatorId) {
+    redirect("/admin");
+  }
+
+  const raw = (formData.get("thankYouMessage") as string) ?? "";
+  const clean = sanitizeHtml(raw, {
+    allowedTags: ["b", "i", "em", "strong", "p", "br"],
+    allowedAttributes: {},
+  });
+  const message = clean.trim() || null;
+  await updateCreatorThankYouRecord(creatorId, message);
   revalidatePath(`/admin/creadores/${creatorId}`);
 }
 

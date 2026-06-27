@@ -1,5 +1,6 @@
 import { getTipWithCreator, updateTipRecord } from "@/lib/db";
 import { CreatorAvatar } from "@/app/t/[slug]/CreatorAvatar";
+import { SocialLinks } from "@/components/SocialLinks";
 
 type Props = {
   params: Promise<{ result: string }>;
@@ -7,6 +8,8 @@ type Props = {
 };
 
 export const dynamic = "force-dynamic";
+
+const DEFAULT_THANK_YOU = "¡Gracias por tu propina! Tu gesto hace la diferencia 🙏";
 
 export default async function PaymentResultPage({ params, searchParams }: Props) {
   const { result } = await params;
@@ -18,25 +21,44 @@ export default async function PaymentResultPage({ params, searchParams }: Props)
     tip = await getTipWithCreator(tip.id);
   }
 
+  const creator = tip?.creator ?? null;
+  const thankYouMessage = creator?.thankYouMessage || DEFAULT_THANK_YOU;
+
   return (
-    <main className="page-narrow">
-      <section className="tip-surface">
-        <div aria-hidden="true" className="tip-header" />
-        {tip ? (
-          <div className="tip-profile-header">
-            <div className="tip-profile-avatar-column">
-              <CreatorAvatar displayName={tip.creator.displayName} photoUrl={tip.creator.photoUrl} />
-            </div>
-            <div className="tip-profile-name-column">
-              <h1>{tip.creator.displayName}</h1>
-              <p className="muted" style={{ marginTop: 4 }}>¡Gracias por tu propina!</p>
-            </div>
+    <main className="ty-page">
+      <div className="ty-hero">
+        <div className="ty-hero-sparkle ty-hero-sparkle--1" />
+        <div className="ty-hero-sparkle ty-hero-sparkle--2" />
+        <div className="ty-hero-sparkle ty-hero-sparkle--3" />
+        <div className="ty-hero-badge">✦</div>
+      </div>
+
+      <div className="ty-body">
+        <div className="ty-avatar-ring">
+          <CreatorAvatar
+            displayName={creator?.displayName ?? ""}
+            photoUrl={creator?.photoUrl ?? null}
+          />
+        </div>
+
+        <div className="ty-message-card">
+          {creator ? <p className="ty-creator-name">{creator.displayName}</p> : null}
+          <div
+            className="ty-message-text"
+            dangerouslySetInnerHTML={{ __html: thankYouMessage }}
+          />
+        </div>
+
+        {creator?.socialLinks ? (
+          <div className="ty-socials">
+            <SocialLinks links={creator.socialLinks} />
           </div>
         ) : null}
-        <div className="tip-body" style={{ textAlign: "center", paddingTop: 8 }}>
-          <p className="muted">Tu pago está pendiente de confirmación por Mercado Pago.</p>
-        </div>
-      </section>
+      </div>
+
+      <footer className="ty-footer">
+        © 2026 Qrpropina · All rights reserved.
+      </footer>
     </main>
   );
 }
