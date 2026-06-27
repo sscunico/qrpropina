@@ -169,11 +169,15 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
               Volver
             </Link>
           ) : null}
-          {showMercadoPagoIntegration && !isAdmin && (!sellerIsConnected(creator) || activeSection === "mercadopago") ? (
-            <div id="banner-mercado-libre" style={sellerIsConnected(creator) ? { display: "none" } : undefined}>
+          {showMercadoPagoIntegration && !isAdmin ? (
+            <div
+              id="banner-mercado-libre"
+              style={sellerIsConnected(creator) && activeSection !== "mercadopago"
+                ? { display: "none", border: "0px solid transparent" }
+                : undefined}
+            >
               {sellerIsConnected(creator) ? (
                 <div className="mp-button-row">
-                  <MercadoPagoAlertButton creatorId={creator.id} isConnected disabled />
                   <form action={disconnectMpWithId}>
                     <button className="button danger mp-disconnect-btn" type="submit">
                       <Unplug size={17} />
@@ -182,22 +186,17 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                   </form>
                 </div>
               ) : (
-                <MercadoPagoAlertButton creatorId={creator.id} isConnected={false} />
+                <>
+                  <MercadoPagoAlertButton creatorId={creator.id} isConnected={false} />
+                  <span className="mp-connect-label">
+                    Integración con Mercado Pago
+                    <InfoTooltip
+                      text="Para recibir propinas de tus clientes necesitás conectar tu cuenta de Mercado Pago. Al integrarla, cada pago que hagan desde tu QR se acredita directamente en tu billetera de MP. Es rápido, seguro y solo se hace una vez."
+                      position="bottom"
+                    />
+                  </span>
+                </>
               )}
-              <span className="mp-connect-label">
-                {sellerIsConnected(creator) ? "Mercado Pago integrado" : "Integración con Mercado Pago"}
-                {sellerIsConnected(creator) ? (
-                  <InfoTooltip
-                    text="Tu cuenta de Mercado Pago está conectada. Los pagos de propinas se acreditan automáticamente en tu billetera."
-                    position="bottom"
-                  />
-                ) : (
-                  <InfoTooltip
-                    text="Para recibir propinas de tus clientes necesitás conectar tu cuenta de Mercado Pago. Al integrarla, cada pago que hagan desde tu QR se acredita directamente en tu billetera de MP. Es rápido, seguro y solo se hace una vez."
-                    position="bottom"
-                  />
-                )}
-              </span>
             </div>
           ) : null}
         </div>

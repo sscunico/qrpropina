@@ -2898,12 +2898,33 @@ h3 {
   box-shadow: none;
 }
 
+.mp-connect-button--loading {
+  cursor: wait;
+  background: #f5f5f5;
+  box-shadow: none;
+  outline-color: transparent;
+}
+
+.mp-spinner {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #009ee3;
+  border-radius: 50%;
+  animation: mp-spin 0.7s linear infinite;
+}
+
+@keyframes mp-spin {
+  to { transform: rotate(360deg); }
+}
+
 .mp-button-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   width: 100%;
-  align-items: center;
+  align-items: stretch;
 }
 
 .mp-disconnect-btn {
