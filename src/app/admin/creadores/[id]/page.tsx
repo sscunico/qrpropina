@@ -162,7 +162,13 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
             </Link>
           </div>
         </div>
-        <div className="actions">
+        <div
+          className="actions"
+          id="Contenedor-mercado-pago"
+          style={!isAdmin && showMercadoPagoIntegration && sellerIsConnected(creator) && activeSection !== "mercadopago"
+            ? { display: "none" }
+            : undefined}
+        >
           {isAdmin ? (
             <Link className="button secondary" href="/admin/creadores">
               <ArrowLeft size={17} />
@@ -170,12 +176,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
             </Link>
           ) : null}
           {showMercadoPagoIntegration && !isAdmin ? (
-            <div
-              id="banner-mercado-libre"
-              style={sellerIsConnected(creator) && activeSection !== "mercadopago"
-                ? { display: "none", border: "0px solid transparent" }
-                : undefined}
-            >
+            <div id="banner-mercado-libre">
               {sellerIsConnected(creator) ? (
                 <div className="mp-button-row">
                   <form action={disconnectMpWithId}>
