@@ -1,6 +1,14 @@
 import { promises as fs } from "fs";
 import path from "path";
 
+export type SocialLinks = {
+  instagram?: string | null;
+  tiktok?: string | null;
+  x?: string | null;
+  facebook?: string | null;
+  youtube?: string | null;
+};
+
 export type Creator = {
   id: string;
   ownerUserId: string | null;
@@ -22,6 +30,8 @@ export type Creator = {
   mpAccessToken: string | null;
   mpRefreshToken: string | null;
   mpTokenExpiresAt: string | null;
+  socialLinks: SocialLinks | null;
+  thankYouMessage: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -118,6 +128,8 @@ type LegacyCreator = Omit<
   | "mpLastName"
   | "mpCountryId"
   | "mpPermalink"
+  | "socialLinks"
+  | "thankYouMessage"
 > & {
   ownerUserId?: string | null;
   mpAlias?: string | null;
@@ -128,6 +140,8 @@ type LegacyCreator = Omit<
   mpLastName?: string | null;
   mpCountryId?: string | null;
   mpPermalink?: string | null;
+  socialLinks?: SocialLinks | null;
+  thankYouMessage?: string | null;
 };
 
 type LegacyTip = Omit<Tip, "creatorId"> & {
@@ -212,6 +226,8 @@ function seedDb(): Db {
         mpAccessToken: null,
         mpRefreshToken: null,
         mpTokenExpiresAt: null,
+        socialLinks: null,
+        thankYouMessage: null,
         isActive: true,
         createdAt,
         updatedAt: createdAt
@@ -237,6 +253,8 @@ function seedDb(): Db {
         mpAccessToken: null,
         mpRefreshToken: null,
         mpTokenExpiresAt: null,
+        socialLinks: null,
+        thankYouMessage: null,
         isActive: true,
         createdAt,
         updatedAt: createdAt
@@ -247,10 +265,6 @@ function seedDb(): Db {
     paymentEvents: [],
     notifications: []
   };
-
-  for (const creator of db.creators) {
-    addDefaultQrCodeForCreator(db, creator.id, createdAt);
-  }
 
   return db;
 }
@@ -281,7 +295,9 @@ function normalizeCreator(creator: LegacyCreator): Creator {
     mpFirstName: creator.mpFirstName || null,
     mpLastName: creator.mpLastName || null,
     mpCountryId: creator.mpCountryId || null,
-    mpPermalink: creator.mpPermalink || null
+    mpPermalink: creator.mpPermalink || null,
+    socialLinks: creator.socialLinks || null,
+    thankYouMessage: creator.thankYouMessage || null
   };
 }
 
@@ -364,13 +380,6 @@ function normalizeDb(raw: LegacyDb): { db: Db; migrated: boolean } {
     paymentEvents: Array.isArray(raw.paymentEvents) ? raw.paymentEvents : [],
     notifications: Array.isArray(raw.notifications) ? raw.notifications : []
   };
-
-  for (const creator of db.creators) {
-    if (!db.qrCodes.some((qrCode) => qrCode.creatorId === creator.id)) {
-      addDefaultQrCodeForCreator(db, creator.id, timestamp);
-      migrated = true;
-    }
-  }
 
   return { migrated, db };
 }
@@ -613,15 +622,6 @@ export async function getCreatorWithTips(id: string, take = 12): Promise<Creator
     return null;
   }
 
-  if (!db.qrCodes.some((qrCode) => qrCode.creatorId === id)) {
-    await mutateDb((nextDb) => {
-      if (nextDb.creators.some((item) => item.id === id)) {
-        addDefaultQrCodeForCreator(nextDb, id, now());
-      }
-    });
-    return getCreatorWithTips(id, take);
-  }
-
   return {
     ...creator,
     qrCodes: sortNewest(db.qrCodes.filter((qrCode) => qrCode.creatorId === id)),
@@ -687,13 +687,14 @@ export async function createCreatorRecord(input: {
       mpAccessToken: null,
       mpRefreshToken: null,
       mpTokenExpiresAt: null,
+      socialLinks: null,
+      thankYouMessage: null,
       isActive: true,
       createdAt: timestamp,
       updatedAt: timestamp
     };
 
     db.creators.push(creator);
-    addDefaultQrCodeForCreator(db, creator.id, timestamp);
     return creator;
   });
 }
@@ -782,17 +783,17 @@ export async function upsertGoogleUser(input: {
           mpAccessToken: null,
           mpRefreshToken: null,
           mpTokenExpiresAt: null,
+          socialLinks: null,
+          thankYouMessage: null,
           isActive: true,
           createdAt: timestamp,
           updatedAt: timestamp
         };
         db.creators.push(creator);
-        addDefaultQrCodeForCreator(db, creator.id, timestamp);
       } else {
         creator.ownerUserId = user.id;
         creator.photoUrl = input.picture || creator.photoUrl || null;
         creator.updatedAt = timestamp;
-        addDefaultQrCodeForCreator(db, creator.id, timestamp);
       }
 
       user.creatorId = creator.id;
@@ -890,6 +891,32 @@ export async function updateCreatorProfileRecord(
       updatedAt: now()
     });
 
+    return creator;
+  });
+}
+
+export async function updateCreatorSocialsRecord(id: string, input: SocialLinks) {
+  return mutateDb((db) => {
+    const creator = db.creators.find((item) => item.id === id);
+    if (!creator) throw new Error("Creador no encontrado.");
+    creator.socialLinks = {
+      instagram: input.instagram || null,
+      tiktok: input.tiktok || null,
+      x: input.x || null,
+      facebook: input.facebook || null,
+      youtube: input.youtube || null
+    };
+    creator.updatedAt = now();
+    return creator;
+  });
+}
+
+export async function updateCreatorThankYouRecord(id: string, thankYouMessage: string | null) {
+  return mutateDb((db) => {
+    const creator = db.creators.find((item) => item.id === id);
+    if (!creator) throw new Error("Creador no encontrado.");
+    creator.thankYouMessage = thankYouMessage || null;
+    creator.updatedAt = now();
     return creator;
   });
 }

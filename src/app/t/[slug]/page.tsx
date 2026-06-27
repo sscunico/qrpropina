@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CreatorAvatar } from "@/app/t/[slug]/CreatorAvatar";
 import { TipForm } from "@/app/t/[slug]/TipForm";
+import { SocialLinks } from "@/components/SocialLinks";
 import { getAppSettings, getCreatorBySlug } from "@/lib/db";
 
 type Props = {
@@ -31,6 +32,9 @@ export default async function TipPage({ params }: Props) {
           </div>
         </div>
         <TipForm commissionPercent={settings.transferDiscountPercent} creatorName={creator.displayName} slug={creator.slug} />
+        {creator.socialLinks ? (
+          <SocialLinks links={creator.socialLinks} />
+        ) : null}
       </section>
     </main>
   );

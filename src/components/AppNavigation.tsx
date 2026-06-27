@@ -14,6 +14,7 @@ import {
   QrCode,
   ScrollText,
   Settings,
+  Share2,
   User,
   Users,
   Wallet,
@@ -137,7 +138,8 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
           items: [
             { href: "/", label: "Inicio", icon: <Home size={18} />, match: "exact" },
             { href: `${creatorHref}?section=qrs`, label: "Mi QR", icon: <QrCode size={18} />, match: "startsWith" },
-            { href: `${creatorHref}?section=perfil`, label: "Mi perfil", icon: <User size={18} />, match: "startsWith" }
+            { href: `${creatorHref}?section=perfil`, label: "Mi perfil", icon: <User size={18} />, match: "startsWith" },
+            { href: `${creatorHref}?section=redes`, label: "Redes y Mensaje", icon: <Share2 size={18} />, match: "startsWith" as const }
           ]
         },
         ...(showMercadoPagoIntegration
