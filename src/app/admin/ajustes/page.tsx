@@ -201,9 +201,18 @@ export default async function AdminSettingsPage() {
           </div>
           <div className={`message ${dbStatus.ok ? "success" : "error"} settings-message`}>
             {dbStatus.ok
-              ? `✓ Conexión exitosa — base de datos: ${process.env.MYSQL_DATABASE}`
+              ? `✓ ${dbStatus.message}`
               : `✗ ${dbStatus.message}`}
           </div>
+          {dbStatus.results ? (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+              {dbStatus.results.map((r) => (
+                <div key={r.host} className={`message ${r.ok ? "success" : "error"} settings-message`} style={{ fontSize: "0.82rem", padding: "6px 12px" }}>
+                  <strong>{r.host}</strong>: {r.ok ? "✓ OK" : `✗ ${r.message}`}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </section>
 
         <section className="panel settings-panel">
