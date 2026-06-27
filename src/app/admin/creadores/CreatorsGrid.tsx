@@ -21,7 +21,7 @@ type CreatorGridRow = {
   slug: string;
 };
 
-type ColumnKey = "avatar" | "creator" | "commission" | "received" | "actions";
+type ColumnKey = "avatar" | "creator" | "mp" | "commission" | "received" | "actions";
 
 type Column = {
   key: ColumnKey;
@@ -35,8 +35,8 @@ type CreatorsGridProps = {
   rows: CreatorGridRow[];
 };
 
-const STORAGE_KEY = "qrpropina.creators.columns";
-const DEFAULT_ORDER: ColumnKey[] = ["avatar", "creator", "commission", "received", "actions"];
+const STORAGE_KEY = "qrpropina.creators.columns.v2";
+const DEFAULT_ORDER: ColumnKey[] = ["avatar", "creator", "mp", "commission", "received", "actions"];
 
 function normalizeOrder(value: unknown): ColumnKey[] {
   if (!Array.isArray(value)) {
@@ -146,17 +146,28 @@ export function CreatorsGrid({ rows }: CreatorsGridProps) {
           </td>
         )
       },
+      mp: {
+        key: "mp",
+        header: "MP",
+        hiddenHeader: true,
+        render: (row) => (
+          <td key={`${row.id}-mp`} style={{ minWidth: 120, textAlign: "center" }}>
+            {row.mercadoPagoConnected ? (
+              <div className="mp-connect-button mp-connect-button--connected mp-connect-button--mini" aria-label="Mercado Pago integrado" style={{ margin: "0 auto" }}>
+                <img alt="Mercado Pago" src="/mp-logo.svg" />
+              </div>
+            ) : (
+              <span className="muted" style={{ fontSize: "0.8rem" }}>Sin integrar</span>
+            )}
+          </td>
+        )
+      },
       commission: {
         key: "commission",
         header: "Comisión",
         render: (row) => (
           <td key={`${row.id}-commission`}>
-            <div className="commission-stack">
-              <span className="pill"><BadgePercent size={14} />{row.commissionPercent}%</span>
-              <span className={row.mercadoPagoConnected ? "mp-status-box ok" : "mp-status-box warn"}>
-                {row.mercadoPagoConnected ? "Integrado" : "Sin integrar"}
-              </span>
-            </div>
+            <span className="pill"><BadgePercent size={14} />{row.commissionPercent}%</span>
           </td>
         )
       },

@@ -5,12 +5,20 @@ import { useRouter } from "next/navigation";
 
 type Props = {
   creatorId: string;
-  isConnected?: boolean;
+  connected?: boolean;
 };
 
-export function MercadoPagoAlertButton({ creatorId, isConnected = false }: Props) {
+export function MercadoPagoAlertButton({ creatorId, connected = false }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  if (connected) {
+    return (
+      <div className="mp-connect-button mp-connect-button--connected" aria-disabled="true">
+        <img alt="Mercado Pago conectado" src="/mp-logo.svg" />
+      </div>
+    );
+  }
 
   function handleClick() {
     setLoading(true);
@@ -27,7 +35,7 @@ export function MercadoPagoAlertButton({ creatorId, isConnected = false }: Props
 
   return (
     <button className="mp-connect-button" type="button" onClick={handleClick}>
-      <img alt={isConnected ? "Reconectar Mercado Pago" : "Integrar Mercado Pago"} src="/mp-logo.svg" />
+      <img alt="Integrar Mercado Pago" src="/mp-logo.svg" />
     </button>
   );
 }

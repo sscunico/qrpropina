@@ -179,6 +179,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
             <div id="banner-mercado-libre">
               {sellerIsConnected(creator) ? (
                 <div className="mp-button-row">
+                  <MercadoPagoAlertButton creatorId={creator.id} connected />
                   <form action={disconnectMpWithId}>
                     <button className="button danger mp-disconnect-btn" type="submit">
                       <Unplug size={17} />
@@ -188,7 +189,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                 </div>
               ) : (
                 <>
-                  <MercadoPagoAlertButton creatorId={creator.id} isConnected={false} />
+                  <MercadoPagoAlertButton creatorId={creator.id} />
                   <span className="mp-connect-label">
                     Integración con Mercado Pago
                     <InfoTooltip

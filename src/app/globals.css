@@ -2894,6 +2894,20 @@ h3 {
   cursor: default;
 }
 
+.mp-connect-button--mini {
+  width: 80px;
+  height: 36px;
+  border-radius: 6px;
+  padding: 4px 8px;
+  outline: none !important;
+  cursor: default;
+  pointer-events: none;
+}
+
+.mp-connect-button--mini img {
+  max-height: 22px;
+}
+
 .mp-connect-button--connected:hover {
   box-shadow: none;
 }
@@ -2920,11 +2934,11 @@ h3 {
 }
 
 .mp-button-row {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
   width: 100%;
-  align-items: stretch;
+  align-items: center;
 }
 
 .mp-disconnect-btn {
