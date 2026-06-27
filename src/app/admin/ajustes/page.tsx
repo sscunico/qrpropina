@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { BadgePercent, Palette, RotateCcw, ServerCog, Wallet } from "lucide-react";
+import { BadgePercent, Database, Palette, RotateCcw, ServerCog, Wallet } from "lucide-react";
+import { testMySQLConnection } from "@/lib/mysql";
 import { resetColorOverrides, saveColorOverrides, setMercadoPagoIntegrationVisibility, setTransferDiscountPercent } from "@/app/admin/actions";
 import { PercentStepper } from "@/components/PercentStepper";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -31,6 +32,11 @@ const ENV_VARS: { key: string; label: string; sensitive: boolean; group: string 
   { key: "NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY", label: "Public key",          sensitive: true,  group: "Mercado Pago" },
   { key: "MERCADOPAGO_ACCESS_TOKEN",           label: "Access token",        sensitive: true,  group: "Mercado Pago" },
   { key: "MERCADOPAGO_CLIENT_SECRET",          label: "Client secret",       sensitive: true,  group: "Mercado Pago" },
+  { key: "MYSQL_HOST",                         label: "Host",                sensitive: false, group: "MySQL" },
+  { key: "MYSQL_PORT",                         label: "Puerto",              sensitive: false, group: "MySQL" },
+  { key: "MYSQL_DATABASE",                     label: "Base de datos",       sensitive: false, group: "MySQL" },
+  { key: "MYSQL_USER",                         label: "Usuario",             sensitive: false, group: "MySQL" },
+  { key: "MYSQL_PASSWORD",                     label: "Contraseña",          sensitive: true,  group: "MySQL" },
 ];
 
 const BRAND_COLORS = [
@@ -64,7 +70,7 @@ export default async function AdminSettingsPage() {
     redirect(session.creatorId ? `/admin/creadores/${session.creatorId}` : "/login");
   }
 
-  const settings = await getAppSettings();
+  const [settings, dbStatus] = await Promise.all([getAppSettings(), testMySQLConnection()]);
   const showMercadoPagoIntegration = settings.showMercadoPagoIntegration;
   const missingOAuthVars = missingMercadoPagoOAuthVars();
   const mercadoPagoRedirectUrl = `${appUrl()}/api/mercadopago/oauth/callback`;
@@ -181,6 +187,25 @@ export default async function AdminSettingsPage() {
             </div>
           </form>
         </section>
+        <section className="panel settings-panel">
+          <div className="section-row compact-row">
+            <div>
+              <p className="kicker">Base de datos</p>
+              <h2>MySQL remoto <InfoTooltip text="Prueba de conexión a la base de datos MySQL configurada en las variables de entorno." /></h2>
+              <p className="muted">{dbStatus.message}</p>
+            </div>
+            <span className={dbStatus.ok ? "pill ok" : "pill warn"}>
+              <Database size={14} />
+              {dbStatus.ok ? "Conectado" : "Sin conexión"}
+            </span>
+          </div>
+          <div className={`message ${dbStatus.ok ? "success" : "error"} settings-message`}>
+            {dbStatus.ok
+              ? `✓ Conexión exitosa — base de datos: ${process.env.MYSQL_DATABASE}`
+              : `✗ ${dbStatus.message}`}
+          </div>
+        </section>
+
         <section className="panel settings-panel">
           <div className="section-row compact-row">
             <div>
