@@ -33,6 +33,7 @@ export type Creator = {
   socialLinks: SocialLinks | null;
   thankYouMessage: string | null;
   isActive: boolean;
+  onboardingCompleted: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -130,6 +131,7 @@ type LegacyCreator = Omit<
   | "mpPermalink"
   | "socialLinks"
   | "thankYouMessage"
+  | "onboardingCompleted"
 > & {
   ownerUserId?: string | null;
   mpAlias?: string | null;
@@ -142,6 +144,7 @@ type LegacyCreator = Omit<
   mpPermalink?: string | null;
   socialLinks?: SocialLinks | null;
   thankYouMessage?: string | null;
+  onboardingCompleted?: boolean;
 };
 
 type LegacyTip = Omit<Tip, "creatorId"> & {
@@ -229,6 +232,7 @@ function seedDb(): Db {
         socialLinks: null,
         thankYouMessage: null,
         isActive: true,
+        onboardingCompleted: false,
         createdAt,
         updatedAt: createdAt
       },
@@ -256,6 +260,7 @@ function seedDb(): Db {
         socialLinks: null,
         thankYouMessage: null,
         isActive: true,
+        onboardingCompleted: false,
         createdAt,
         updatedAt: createdAt
       }
@@ -297,7 +302,8 @@ function normalizeCreator(creator: LegacyCreator): Creator {
     mpCountryId: creator.mpCountryId || null,
     mpPermalink: creator.mpPermalink || null,
     socialLinks: creator.socialLinks || null,
-    thankYouMessage: creator.thankYouMessage || null
+    thankYouMessage: creator.thankYouMessage || null,
+    onboardingCompleted: creator.onboardingCompleted ?? false
   };
 }
 
@@ -690,6 +696,7 @@ export async function createCreatorRecord(input: {
       socialLinks: null,
       thankYouMessage: null,
       isActive: true,
+      onboardingCompleted: false,
       createdAt: timestamp,
       updatedAt: timestamp
     };
@@ -786,6 +793,7 @@ export async function upsertGoogleUser(input: {
           socialLinks: null,
           thankYouMessage: null,
           isActive: true,
+          onboardingCompleted: false,
           createdAt: timestamp,
           updatedAt: timestamp
         };
@@ -916,6 +924,16 @@ export async function updateCreatorThankYouRecord(id: string, thankYouMessage: s
     const creator = db.creators.find((item) => item.id === id);
     if (!creator) throw new Error("Creador no encontrado.");
     creator.thankYouMessage = thankYouMessage || null;
+    creator.updatedAt = now();
+    return creator;
+  });
+}
+
+export async function setCreatorOnboardingCompletedRecord(id: string) {
+  return mutateDb((db) => {
+    const creator = db.creators.find((item) => item.id === id);
+    if (!creator) throw new Error("Creador no encontrado.");
+    creator.onboardingCompleted = true;
     creator.updatedAt = now();
     return creator;
   });

@@ -288,7 +288,7 @@ body.drawer-open {
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 9999;
   pointer-events: none;
   background: rgba(16, 24, 40, 0.28);
   opacity: 0;
@@ -303,7 +303,7 @@ body.drawer-open {
 .side-drawer {
   position: fixed;
   inset: 0 0 0 auto;
-  z-index: 60;
+  z-index: 10000;
   width: min(330px, calc(100vw - 32px));
   overflow-y: auto;
   border-left: 1px solid var(--line);
@@ -489,11 +489,16 @@ body.drawer-open {
 .notif-date {
   font-size: 0.82rem;
   white-space: nowrap;
+  min-width: 160px;
 }
 
 .notif-actions {
   width: 44px;
   text-align: right;
+}
+
+.table-scroll-wrap .table {
+  min-width: 700px;
 }
 
 .notif-empty {
@@ -1065,6 +1070,8 @@ h3 {
   align-items: center;
   gap: 6px;
   min-height: 28px;
+  max-width: 200px;
+  margin-left: auto;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: #fff;

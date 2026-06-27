@@ -19,6 +19,7 @@ import {
   createCreatorQr,
   deleteCreatorQr,
   disconnectMercadoPago,
+  markOnboardingCompleted,
   toggleCreator,
   updateCreator,
   updateCreatorMercadoPagoAlias,
@@ -130,7 +131,13 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
     ? updateCreatorQr.bind(null, creator.id, selectedQr.id)
     : createQrWithId;
   const bothChecklistDone = creator.qrCodes.length > 0 && sellerIsConnected(creator);
+
+  if (!isAdmin && bothChecklistDone && !creator.onboardingCompleted) {
+    await markOnboardingCompleted(creator.id);
+  }
+
   const showNewUserBanner =
+    !creator.onboardingCompleted &&
     !isAdmin &&
     session?.role === "creator" &&
     (
@@ -141,10 +148,6 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
       (showMercadoPagoIntegration && !sellerIsConnected(creator))
     ) &&
     !bothChecklistDone;
-
-  if (!isAdmin && mp === "connected" && creator.qrCodes.length === 0) {
-    redirect(`${creatorHref}?mp=connected&section=qrs`);
-  }
 
   return (
     <main className="page">
@@ -167,7 +170,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
             </Link>
           ) : null}
           {showMercadoPagoIntegration && !isAdmin && (!sellerIsConnected(creator) || activeSection === "mercadopago") ? (
-            <>
+            <div id="banner-mercado-libre" style={sellerIsConnected(creator) ? { display: "none" } : undefined}>
               {sellerIsConnected(creator) ? (
                 <div className="mp-button-row">
                   <MercadoPagoAlertButton creatorId={creator.id} isConnected disabled />
@@ -195,7 +198,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                   />
                 )}
               </span>
-            </>
+            </div>
           ) : null}
         </div>
       </section>

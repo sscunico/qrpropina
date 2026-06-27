@@ -24,6 +24,7 @@ import {
   updateCreatorRecord,
   updateCreatorSocialsRecord,
   updateCreatorThankYouRecord,
+  setCreatorOnboardingCompletedRecord,
   updateQrCodeRecord
 } from "@/lib/db";
 import { qrDataUrl } from "@/lib/qrcode";
@@ -337,6 +338,10 @@ export async function updateCreatorThankYou(creatorId: string, formData: FormDat
   const message = clean.trim() || null;
   await updateCreatorThankYouRecord(creatorId, message);
   revalidatePath(`/admin/creadores/${creatorId}`);
+}
+
+export async function markOnboardingCompleted(creatorId: string) {
+  await setCreatorOnboardingCompletedRecord(creatorId);
 }
 
 export async function updateCreatorMercadoPagoAlias(creatorId: string, formData: FormData) {
