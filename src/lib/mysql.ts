@@ -1,10 +1,15 @@
 import mysql from "mysql2/promise";
 
+// dotenv escapes certain chars (e.g. % → \%) — strip those escape backslashes
+function unescapeEnv(value: string | undefined): string | undefined {
+  return value?.replace(/\\(.)/g, "$1");
+}
+
 const BASE_CONFIG = {
   port: parseInt(process.env.DB_PORT || "3306", 10),
   database: process.env.DB_DATABASE,
   user: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
+  password: unescapeEnv(process.env.DB_PASSWORD),
   connectTimeout: 5000,
 };
 
@@ -28,7 +33,9 @@ export async function testMySQLConnection(): Promise<{
   debug?: string;
   results?: { host: string; ok: boolean; message: string }[];
 }> {
-  const debug = `DB_HOST="${process.env.DB_HOST}" DB_PORT="${process.env.DB_PORT}" DB_DATABASE="${process.env.DB_DATABASE}" DB_USERNAME="${process.env.DB_USERNAME}" DB_PASSWORD="${process.env.DB_PASSWORD ?? "(vacío)"}"`;
+  const rawPassword = process.env.DB_PASSWORD ?? "(vacío)";
+  const normalizedPassword = unescapeEnv(process.env.DB_PASSWORD) ?? "(vacío)";
+  const debug = `DB_HOST="${process.env.DB_HOST}" DB_PORT="${process.env.DB_PORT}" DB_DATABASE="${process.env.DB_DATABASE}" DB_USERNAME="${process.env.DB_USERNAME}" DB_PASSWORD_RAW="${rawPassword}" DB_PASSWORD_NORM="${normalizedPassword}"`;
 
   if (!BASE_CONFIG.database || !BASE_CONFIG.user) {
     return { ok: false, message: "Variables de entorno MySQL no configuradas.", debug };
