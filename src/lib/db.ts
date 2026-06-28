@@ -1,5 +1,9 @@
-import { promises as fs } from "fs";
-import path from "path";
+import type { PoolConnection, RowDataPacket } from "mysql2/promise";
+import { getPool } from "./mysql";
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Types
+// ═══════════════════════════════════════════════════════════════════════════
 
 export type SocialLinks = {
   instagram?: string | null;
@@ -107,61 +111,6 @@ export type AppSettings = {
   updatedAt: string | null;
 };
 
-type Db = {
-  schemaVersion: 10;
-  settings: AppSettings;
-  users: User[];
-  creators: Creator[];
-  qrCodes: CreatorQrCode[];
-  tips: Tip[];
-  paymentEvents: PaymentEvent[];
-  notifications: Notification[];
-};
-
-type LegacyCreator = Omit<
-  Creator,
-  | "ownerUserId"
-  | "mpAlias"
-  | "mpNickname"
-  | "mpEmail"
-  | "mpSiteId"
-  | "mpFirstName"
-  | "mpLastName"
-  | "mpCountryId"
-  | "mpPermalink"
-  | "socialLinks"
-  | "thankYouMessage"
-  | "onboardingCompleted"
-> & {
-  ownerUserId?: string | null;
-  mpAlias?: string | null;
-  mpNickname?: string | null;
-  mpEmail?: string | null;
-  mpSiteId?: string | null;
-  mpFirstName?: string | null;
-  mpLastName?: string | null;
-  mpCountryId?: string | null;
-  mpPermalink?: string | null;
-  socialLinks?: SocialLinks | null;
-  thankYouMessage?: string | null;
-  onboardingCompleted?: boolean;
-};
-
-type LegacyTip = Omit<Tip, "creatorId"> & {
-  creatorId?: string;
-  recipientId?: string;
-};
-
-type LegacyDb = Partial<Omit<Db, "tips" | "schemaVersion" | "users" | "creators" | "settings">> & {
-    schemaVersion?: number;
-  settings?: Partial<AppSettings>;
-  users?: User[];
-  creators?: LegacyCreator[];
-  qrCodes?: CreatorQrCode[];
-  recipients?: LegacyCreator[];
-  tips?: LegacyTip[];
-};
-
 export type StorageInfo = {
   dbPath: string;
   backupDir: string;
@@ -183,95 +132,28 @@ export type QrCodeWithCreator = CreatorQrCode & {
   creator: Creator;
 };
 
-const dataDir = path.join(process.cwd(), "data");
-const dbPath = path.join(dataDir, "db.json");
-const backupDir = path.join(dataDir, "backups");
+// ═══════════════════════════════════════════════════════════════════════════
+// Pure helpers
+// ═══════════════════════════════════════════════════════════════════════════
 
 function now() {
   return new Date().toISOString();
 }
 
-function defaultSettings(timestamp = now()): AppSettings {
-  return {
-    showMercadoPagoIntegration: true,
-    transferDiscountPercent: 5,
-    colorOverrides: {},
-    updatedAt: timestamp
-  };
+function toMySQL(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  return new Date(iso).toISOString().slice(0, 19).replace("T", " ");
 }
 
-function seedDb(): Db {
-  const createdAt = now();
+function fromMySQL(d: Date | string | null | undefined): string | null {
+  if (!d) return null;
+  return d instanceof Date ? d.toISOString() : new Date(d).toISOString();
+}
 
-  const db: Db = {
-    schemaVersion: 10,
-    settings: defaultSettings(createdAt),
-    users: [],
-    creators: [
-      {
-        id: crypto.randomUUID(),
-        ownerUserId: null,
-        displayName: "Juan Perez",
-        slug: "juan-perez",
-        role: "Mozo",
-        locationName: "Bar Demo",
-        photoUrl: null,
-        mpAlias: null,
-        commissionPercent: 5,
-        mpUserId: null,
-        mpNickname: null,
-        mpEmail: null,
-        mpSiteId: null,
-        mpFirstName: null,
-        mpLastName: null,
-        mpCountryId: null,
-        mpPermalink: null,
-        mpAccessToken: null,
-        mpRefreshToken: null,
-        mpTokenExpiresAt: null,
-        socialLinks: null,
-        thankYouMessage: null,
-        isActive: true,
-        onboardingCompleted: false,
-        createdAt,
-        updatedAt: createdAt
-      },
-      {
-        id: crypto.randomUUID(),
-        ownerUserId: null,
-        displayName: "Ana Gomez",
-        slug: "ana-gomez",
-        role: "Barbera",
-        locationName: "Estudio Centro",
-        photoUrl: null,
-        mpAlias: null,
-        commissionPercent: 5,
-        mpUserId: null,
-        mpNickname: null,
-        mpEmail: null,
-        mpSiteId: null,
-        mpFirstName: null,
-        mpLastName: null,
-        mpCountryId: null,
-        mpPermalink: null,
-        mpAccessToken: null,
-        mpRefreshToken: null,
-        mpTokenExpiresAt: null,
-        socialLinks: null,
-        thankYouMessage: null,
-        isActive: true,
-        onboardingCompleted: false,
-        createdAt,
-        updatedAt: createdAt
-      }
-    ],
-    qrCodes: [],
-    tips: [],
-    paymentEvents: [],
-    notifications: []
-  };
-
-  return db;
+function parseJSON<T>(value: unknown, fallback: T): T {
+  if (!value) return fallback;
+  if (typeof value === "object") return value as T;
+  try { return JSON.parse(value as string) as T; } catch { return fallback; }
 }
 
 function normalizedEmail(email: string) {
@@ -281,7 +163,7 @@ function normalizedEmail(email: string) {
 function adminEmails() {
   return (process.env.ADMIN_GOOGLE_EMAILS || process.env.ADMIN_EMAIL || "")
     .split(",")
-    .map((email) => normalizedEmail(email))
+    .map((e) => normalizedEmail(e))
     .filter(Boolean);
 }
 
@@ -289,373 +171,426 @@ function emailIsAdmin(email: string) {
   return adminEmails().includes(normalizedEmail(email));
 }
 
-function normalizeCreator(creator: LegacyCreator): Creator {
-  return {
-    ...creator,
-    ownerUserId: creator.ownerUserId || null,
-    mpAlias: creator.mpAlias || null,
-    mpNickname: creator.mpNickname || null,
-    mpEmail: creator.mpEmail || null,
-    mpSiteId: creator.mpSiteId || null,
-    mpFirstName: creator.mpFirstName || null,
-    mpLastName: creator.mpLastName || null,
-    mpCountryId: creator.mpCountryId || null,
-    mpPermalink: creator.mpPermalink || null,
-    socialLinks: creator.socialLinks || null,
-    thankYouMessage: creator.thankYouMessage || null,
-    onboardingCompleted: creator.onboardingCompleted ?? false
-  };
-}
-
-function normalizeTip(tip: LegacyTip): Tip {
-  const { recipientId: _legacyRecipientId, ...rest } = tip;
-  return {
-    ...rest,
-    creatorId: tip.creatorId || tip.recipientId || ""
-  };
-}
-
 function normalizeTransferDiscountPercent(value: unknown) {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 40) {
-    return 5;
-  }
-
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 40) return 5;
   return parsed;
 }
 
-function normalizeSettings(settings: Partial<AppSettings> | undefined, timestamp: string): AppSettings {
+function defaultSettings(timestamp = now()): AppSettings {
   return {
-    showMercadoPagoIntegration: settings?.showMercadoPagoIntegration !== false,
-    transferDiscountPercent: normalizeTransferDiscountPercent(settings?.transferDiscountPercent),
-    colorOverrides: settings?.colorOverrides && typeof settings.colorOverrides === "object" ? settings.colorOverrides : {},
-    updatedAt: settings?.updatedAt || timestamp
+    showMercadoPagoIntegration: true,
+    transferDiscountPercent: 5,
+    colorOverrides: {},
+    updatedAt: timestamp,
   };
 }
 
-function normalizeDb(raw: LegacyDb): { db: Db; migrated: boolean } {
-  let migrated =
-    raw.schemaVersion !== 10 ||
-    !raw.settings ||
-    typeof raw.settings.transferDiscountPercent !== "number" ||
-    !raw.creators ||
-    !raw.users ||
-    !raw.qrCodes ||
-    !raw.notifications;
-  const creators = Array.isArray(raw.creators)
-    ? raw.creators
-    : Array.isArray(raw.recipients)
-      ? raw.recipients
-      : [];
-  const qrCodes = Array.isArray(raw.qrCodes) ? raw.qrCodes : [];
-  const timestamp = now();
-  const users = Array.isArray(raw.users) ? raw.users : [];
-
-  for (const email of adminEmails()) {
-    const existingAdmin = users.find((user) => normalizedEmail(user.email) === email);
-    if (existingAdmin) {
-      if (existingAdmin.role !== "admin" || existingAdmin.creatorId) {
-        existingAdmin.role = "admin";
-        existingAdmin.creatorId = null;
-        existingAdmin.updatedAt = timestamp;
-        migrated = true;
-      }
-    } else {
-      users.push({
-        id: crypto.randomUUID(),
-        email,
-        name: email,
-        picture: null,
-        role: "admin",
-        creatorId: null,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        lastLoginAt: null
-      });
-      migrated = true;
-    }
-  }
-
-  const db: Db = {
-    schemaVersion: 10,
-    settings: normalizeSettings(raw.settings, timestamp),
-    users,
-    creators: creators.map(normalizeCreator),
-    qrCodes,
-    tips: Array.isArray(raw.tips) ? raw.tips.map(normalizeTip) : [],
-    paymentEvents: Array.isArray(raw.paymentEvents) ? raw.paymentEvents : [],
-    notifications: Array.isArray(raw.notifications) ? raw.notifications : []
-  };
-
-  return { migrated, db };
-}
-
-async function readDb(): Promise<Db> {
-  try {
-    const raw = await fs.readFile(dbPath, "utf8");
-    const parsed = JSON.parse(raw) as LegacyDb;
-    const { db, migrated } = normalizeDb(parsed);
-
-    if (migrated) {
-      await writeDb(db);
-    }
-
-    return db;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
-
-    const db = seedDb();
-    await writeDb(db);
-    return db;
-  }
-}
-
-async function fileExists(filePath: string) {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return false;
-    }
-
-    throw error;
-  }
-}
-
-async function createDailyBackup() {
-  if (!(await fileExists(dbPath))) {
-    return;
-  }
-
-  await fs.mkdir(backupDir, { recursive: true });
-  const date = new Date().toISOString().slice(0, 10);
-  const backupPath = path.join(backupDir, `db-${date}.json`);
-
-  if (await fileExists(backupPath)) {
-    return;
-  }
-
-  await fs.copyFile(dbPath, backupPath);
-}
-
-async function writeDb(db: Db) {
-  await fs.mkdir(dataDir, { recursive: true });
-  await createDailyBackup();
-
-  const content = JSON.stringify(db, null, 2);
-  const tmpPath = path.join(dataDir, `db.${process.pid}.${Date.now()}.tmp`);
-  await fs.writeFile(tmpPath, content, "utf8");
-
-  try {
-    await fs.rename(tmpPath, dbPath);
-  } catch (err) {
-    // On Windows, rename over a watched file fails with EPERM — fall back to direct write.
-    if ((err as NodeJS.ErrnoException).code === "EPERM") {
-      await fs.writeFile(dbPath, content, "utf8");
-      await fs.unlink(tmpPath).catch(() => {});
-    } else {
-      await fs.unlink(tmpPath).catch(() => {});
-      throw err;
-    }
-  }
-}
-
-let mutationQueue: Promise<void> = Promise.resolve();
-
-async function mutateDb<T>(mutator: (db: Db) => T | Promise<T>) {
-  const run = mutationQueue.then(async () => {
-    const db = await readDb();
-    const result = await mutator(db);
-    await writeDb(db);
-    return result;
-  });
-
-  mutationQueue = run.then(
-    () => undefined,
-    () => undefined
+function slugify(value: string) {
+  return (
+    value
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 42) || "creador"
   );
-
-  return run;
 }
 
-function sortNewest<T extends { createdAt: string }>(items: T[]) {
-  return [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export function normalizeMercadoPagoAlias(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function validateMercadoPagoAlias(value: string) {
+  const alias = normalizeMercadoPagoAlias(value);
+  if (!alias) throw new Error("Ingresa un alias de Mercado Pago.");
+  if (!/^[a-z0-9](?:[a-z0-9.-]{4,38}[a-z0-9])$/.test(alias))
+    throw new Error("Usa entre 6 y 40 caracteres: letras, números, punto o guion.");
+  return alias;
+}
+
+export function normalizeQrId(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function validateQrId(value: string) {
+  const qrId = normalizeQrId(value);
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(qrId))
+    throw new Error("El ID del QR solo puede tener letras, números y guiones.");
+  if (qrId.length > 64)
+    throw new Error("El ID del QR no puede superar 64 caracteres.");
+  return qrId;
 }
 
 export function isApprovedTip(tip: Pick<Tip, "status">) {
   return tip.status === "approved";
 }
 
-async function inspectStorage(): Promise<StorageInfo> {
-  try {
-    const stats = await fs.stat(dbPath);
-    return {
-      dbPath,
-      backupDir,
-      exists: true,
-      sizeBytes: stats.size,
-      updatedAt: stats.mtime.toISOString()
-    };
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
+// ═══════════════════════════════════════════════════════════════════════════
+// Row mappers
+// ═══════════════════════════════════════════════════════════════════════════
 
-    return {
-      dbPath,
-      backupDir,
-      exists: false,
-      sizeBytes: 0,
-      updatedAt: null
-    };
-  }
+function rowToCreator(r: RowDataPacket): Creator {
+  return {
+    id: r.id,
+    ownerUserId: r.owner_user_id ?? null,
+    displayName: r.display_name,
+    slug: r.slug,
+    role: r.role ?? null,
+    locationName: r.location_name ?? null,
+    photoUrl: r.photo_url ?? null,
+    mpAlias: r.mp_alias ?? null,
+    commissionPercent: Number(r.commission_percent),
+    mpUserId: r.mp_user_id ?? null,
+    mpNickname: r.mp_nickname ?? null,
+    mpEmail: r.mp_email ?? null,
+    mpSiteId: r.mp_site_id ?? null,
+    mpFirstName: r.mp_first_name ?? null,
+    mpLastName: r.mp_last_name ?? null,
+    mpCountryId: r.mp_country_id ?? null,
+    mpPermalink: r.mp_permalink ?? null,
+    mpAccessToken: r.mp_access_token ?? null,
+    mpRefreshToken: r.mp_refresh_token ?? null,
+    mpTokenExpiresAt: fromMySQL(r.mp_token_expires_at),
+    socialLinks: parseJSON<SocialLinks | null>(r.social_links, null),
+    thankYouMessage: r.thank_you_message ?? null,
+    isActive: Boolean(r.is_active),
+    onboardingCompleted: Boolean(r.onboarding_completed),
+    createdAt: fromMySQL(r.created_at) ?? now(),
+    updatedAt: fromMySQL(r.updated_at) ?? now(),
+  };
 }
 
-export async function getStorageInfo() {
-  await readDb();
-  return inspectStorage();
+function rowToUser(r: RowDataPacket): User {
+  return {
+    id: r.id,
+    email: r.email,
+    name: r.name ?? null,
+    picture: r.picture ?? null,
+    role: r.role as UserRole,
+    creatorId: r.creator_id ?? null,
+    createdAt: fromMySQL(r.created_at) ?? now(),
+    updatedAt: fromMySQL(r.updated_at) ?? now(),
+    lastLoginAt: fromMySQL(r.last_login_at),
+  };
 }
 
-export async function getAppSettings() {
-  const db = await readDb();
-  return db.settings;
+function rowToQrCode(r: RowDataPacket): CreatorQrCode {
+  return {
+    id: r.id,
+    creatorId: r.creator_id,
+    qrId: r.qr_id,
+    createdAt: fromMySQL(r.created_at) ?? now(),
+    updatedAt: fromMySQL(r.updated_at) ?? now(),
+  };
 }
 
-function latestTimestamp(values: Array<string | null | undefined>) {
-  return values.filter(Boolean).sort().at(-1) || "";
+function rowToTip(r: RowDataPacket): Tip {
+  return {
+    id: r.id,
+    creatorId: r.creator_id,
+    amountCents: r.amount_cents,
+    platformFeeCents: r.platform_fee_cents,
+    currency: r.currency,
+    status: r.status,
+    preferenceId: r.preference_id ?? null,
+    paymentId: r.payment_id ?? null,
+    externalReference: r.external_reference,
+    checkoutUrl: r.checkout_url ?? null,
+    payerEmail: r.payer_email ?? null,
+    rawPayment: r.raw_payment ?? null,
+    createdAt: fromMySQL(r.created_at) ?? now(),
+    updatedAt: fromMySQL(r.updated_at) ?? now(),
+  };
 }
+
+function rowToNotification(r: RowDataPacket): Notification {
+  return {
+    id: r.id,
+    creatorId: r.creator_id,
+    title: r.title,
+    body: r.body ?? null,
+    photoUrl: r.photo_url ?? null,
+    imageUrl: r.image_url ?? null,
+    isRead: Boolean(r.is_read),
+    isVisible: Boolean(r.is_visible),
+    createdAt: fromMySQL(r.created_at) ?? now(),
+    updatedAt: fromMySQL(r.updated_at) ?? now(),
+  };
+}
+
+function rowToSettings(r: RowDataPacket): AppSettings {
+  return {
+    showMercadoPagoIntegration: Boolean(r.show_mp),
+    transferDiscountPercent: normalizeTransferDiscountPercent(r.transfer_percent),
+    colorOverrides: parseJSON<Record<string, string>>(r.color_overrides, {}),
+    updatedAt: fromMySQL(r.updated_at),
+  };
+}
+
+function rowToPaymentEvent(r: RowDataPacket): PaymentEvent {
+  return {
+    id: r.id,
+    tipId: r.tip_id ?? null,
+    eventType: r.event_type,
+    payload: r.payload,
+    createdAt: fromMySQL(r.created_at) ?? now(),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Settings
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function ensureSettings(): Promise<AppSettings> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM settings WHERE id = 1");
+  if (rows.length > 0) return rowToSettings(rows[0]);
+
+  const defaults = defaultSettings();
+  await pool.query(
+    "INSERT INTO settings (id, show_mp, transfer_percent, color_overrides, updated_at) VALUES (1, ?, ?, ?, ?)",
+    [1, defaults.transferDiscountPercent, JSON.stringify(defaults.colorOverrides), toMySQL(defaults.updatedAt)]
+  );
+  return defaults;
+}
+
+export async function getAppSettings(): Promise<AppSettings> {
+  return ensureSettings();
+}
+
+export async function setMercadoPagoIntegrationVisible(show: boolean) {
+  const pool = getPool();
+  await ensureSettings();
+  await pool.query(
+    "UPDATE settings SET show_mp = ?, updated_at = ? WHERE id = 1",
+    [show ? 1 : 0, toMySQL(now())]
+  );
+  return getAppSettings();
+}
+
+export async function setTransferDiscountPercentValue(value: number) {
+  const pool = getPool();
+  await ensureSettings();
+  await pool.query(
+    "UPDATE settings SET transfer_percent = ?, updated_at = ? WHERE id = 1",
+    [normalizeTransferDiscountPercent(value), toMySQL(now())]
+  );
+  return getAppSettings();
+}
+
+export async function setColorOverrides(overrides: Record<string, string>) {
+  const pool = getPool();
+  await ensureSettings();
+  await pool.query(
+    "UPDATE settings SET color_overrides = ?, updated_at = ? WHERE id = 1",
+    [JSON.stringify(overrides), toMySQL(now())]
+  );
+  return getAppSettings();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Storage info (MySQL stub)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function getStorageInfo(): Promise<StorageInfo> {
+  return {
+    dbPath: `mysql://${process.env.DB_HOST || "localhost"}/${process.env.DB_DATABASE}`,
+    backupDir: "(MySQL — sin backup local)",
+    exists: true,
+    sizeBytes: 0,
+    updatedAt: now(),
+  };
+}
+
+export async function exportDbSnapshot() {
+  const pool = getPool();
+  const [[settingsRows], [userRows], [creatorRows], [qrRows], [tipRows], [eventRows], [notifRows]] =
+    await Promise.all([
+      pool.query<RowDataPacket[]>("SELECT * FROM settings WHERE id = 1"),
+      pool.query<RowDataPacket[]>("SELECT * FROM users"),
+      pool.query<RowDataPacket[]>("SELECT * FROM creators"),
+      pool.query<RowDataPacket[]>("SELECT * FROM qr_codes"),
+      pool.query<RowDataPacket[]>("SELECT * FROM tips"),
+      pool.query<RowDataPacket[]>("SELECT * FROM payment_events"),
+      pool.query<RowDataPacket[]>("SELECT * FROM notifications"),
+    ]);
+
+  return {
+    app: "qrpropina",
+    exportedAt: now(),
+    storage: await getStorageInfo(),
+    data: {
+      schemaVersion: 10,
+      settings: settingsRows.length > 0 ? rowToSettings(settingsRows[0]) : defaultSettings(),
+      users: userRows.map(rowToUser),
+      creators: creatorRows.map(rowToCreator),
+      qrCodes: qrRows.map(rowToQrCode),
+      tips: tipRows.map(rowToTip),
+      paymentEvents: eventRows.map(rowToPaymentEvent),
+      notifications: notifRows.map(rowToNotification),
+    },
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Activity version (cache invalidation)
+// ═══════════════════════════════════════════════════════════════════════════
 
 export async function getActivityVersionForSession(input: {
   role: UserRole;
   creatorId?: string | null;
 }) {
-  const db = await readDb();
+  const pool = getPool();
   const isCreator = input.role === "creator" && Boolean(input.creatorId);
-  const notificationTarget = isCreator ? input.creatorId : ADMIN_NOTIFICATIONS_ID;
-  const creators = isCreator
-    ? db.creators.filter((creator) => creator.id === input.creatorId)
-    : db.creators;
-  const creatorIds = new Set(creators.map((creator) => creator.id));
-  const qrCodes = isCreator
-    ? db.qrCodes.filter((qrCode) => creatorIds.has(qrCode.creatorId))
-    : db.qrCodes;
-  const tips = isCreator
-    ? db.tips.filter((tip) => creatorIds.has(tip.creatorId))
-    : db.tips;
-  const notifications = db.notifications.filter((notification) => notification.creatorId === notificationTarget);
-  const latest = latestTimestamp([
-    db.settings.updatedAt,
-    ...creators.map((creator) => creator.updatedAt),
-    ...qrCodes.map((qrCode) => qrCode.updatedAt),
-    ...tips.map((tip) => tip.updatedAt),
-    ...notifications.map((notification) => notification.updatedAt),
-    ...(isCreator ? [] : db.users.map((user) => user.updatedAt)),
-    ...(isCreator ? [] : db.paymentEvents.map((event) => event.createdAt))
-  ]);
-  const unread = notifications.filter((notification) => notification.isVisible && !notification.isRead).length;
+  const notifTarget = isCreator ? input.creatorId! : ADMIN_NOTIFICATIONS_ID;
+
+  const [settingsRow] = await pool.query<RowDataPacket[]>("SELECT updated_at FROM settings WHERE id = 1");
+  const settingsTs = fromMySQL(settingsRow[0]?.updated_at) ?? "";
+
+  let creatorsTs = "", creatorsCount = 0;
+  let qrsTs = "", qrsCount = 0;
+  let tipsTs = "", tipsCount = 0;
+  let usersTs = "", usersCount = 0;
+  let eventsTs = "", eventsCount = 0;
+
+  if (isCreator) {
+    const [[cr], [qr], [ti]] = await Promise.all([
+      pool.query<RowDataPacket[]>("SELECT MAX(updated_at) ts, COUNT(*) cnt FROM creators WHERE id = ?", [input.creatorId]),
+      pool.query<RowDataPacket[]>("SELECT MAX(updated_at) ts, COUNT(*) cnt FROM qr_codes WHERE creator_id = ?", [input.creatorId]),
+      pool.query<RowDataPacket[]>("SELECT MAX(updated_at) ts, COUNT(*) cnt FROM tips WHERE creator_id = ?", [input.creatorId]),
+    ]);
+    creatorsTs = fromMySQL(cr[0]?.ts) ?? "";
+    creatorsCount = Number(cr[0]?.cnt ?? 0);
+    qrsTs = fromMySQL(qr[0]?.ts) ?? "";
+    qrsCount = Number(qr[0]?.cnt ?? 0);
+    tipsTs = fromMySQL(ti[0]?.ts) ?? "";
+    tipsCount = Number(ti[0]?.cnt ?? 0);
+  } else {
+    const [[cr], [qr], [ti], [us], [ev]] = await Promise.all([
+      pool.query<RowDataPacket[]>("SELECT MAX(updated_at) ts, COUNT(*) cnt FROM creators"),
+      pool.query<RowDataPacket[]>("SELECT MAX(updated_at) ts, COUNT(*) cnt FROM qr_codes"),
+      pool.query<RowDataPacket[]>("SELECT MAX(updated_at) ts, COUNT(*) cnt FROM tips"),
+      pool.query<RowDataPacket[]>("SELECT MAX(updated_at) ts, COUNT(*) cnt FROM users"),
+      pool.query<RowDataPacket[]>("SELECT MAX(created_at) ts, COUNT(*) cnt FROM payment_events"),
+    ]);
+    creatorsTs = fromMySQL(cr[0]?.ts) ?? "";
+    creatorsCount = Number(cr[0]?.cnt ?? 0);
+    qrsTs = fromMySQL(qr[0]?.ts) ?? "";
+    qrsCount = Number(qr[0]?.cnt ?? 0);
+    tipsTs = fromMySQL(ti[0]?.ts) ?? "";
+    tipsCount = Number(ti[0]?.cnt ?? 0);
+    usersTs = fromMySQL(us[0]?.ts) ?? "";
+    usersCount = Number(us[0]?.cnt ?? 0);
+    eventsTs = fromMySQL(ev[0]?.ts) ?? "";
+    eventsCount = Number(ev[0]?.cnt ?? 0);
+  }
+
+  const [notifRows] = await pool.query<RowDataPacket[]>(
+    "SELECT MAX(updated_at) ts, COUNT(*) cnt, SUM(is_visible = 1 AND is_read = 0) unread FROM notifications WHERE creator_id = ?",
+    [notifTarget]
+  );
+  const notifTs = fromMySQL(notifRows[0]?.ts) ?? "";
+  const notifCount = Number(notifRows[0]?.cnt ?? 0);
+  const unread = Number(notifRows[0]?.unread ?? 0);
+
+  const latest = [settingsTs, creatorsTs, qrsTs, tipsTs, notifTs, usersTs, eventsTs]
+    .filter(Boolean).sort().at(-1) ?? "";
 
   return [
     latest,
-    `creators:${creators.length}`,
-    `qrs:${qrCodes.length}`,
-    `tips:${tips.length}`,
-    `notifications:${notifications.length}`,
+    `creators:${creatorsCount}`,
+    `qrs:${qrsCount}`,
+    `tips:${tipsCount}`,
+    `notifications:${notifCount}`,
     `unread:${unread}`,
-    isCreator ? `creator:${input.creatorId}` : `users:${db.users.length}:events:${db.paymentEvents.length}`
+    isCreator ? `creator:${input.creatorId}` : `users:${usersCount}:events:${eventsCount}`,
   ].join("|");
 }
 
-export async function setMercadoPagoIntegrationVisible(showMercadoPagoIntegration: boolean) {
-  return mutateDb((db) => {
-    db.settings.showMercadoPagoIntegration = showMercadoPagoIntegration;
-    db.settings.updatedAt = now();
-    return db.settings;
-  });
-}
-
-export async function setTransferDiscountPercentValue(transferDiscountPercent: number) {
-  return mutateDb((db) => {
-    db.settings.transferDiscountPercent = normalizeTransferDiscountPercent(transferDiscountPercent);
-    db.settings.updatedAt = now();
-    return db.settings;
-  });
-}
-
-export async function exportDbSnapshot() {
-  const db = await readDb();
-
-  return {
-    app: "qrpropina",
-    exportedAt: now(),
-    storage: await inspectStorage(),
-    data: db
-  };
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// Creators
+// ═══════════════════════════════════════════════════════════════════════════
 
 export async function listCreatorsWithRecentTips(take = 5): Promise<CreatorWithTips[]> {
-  const db = await readDb();
-  return sortNewest(db.creators).map((creator) => ({
-    ...creator,
-    qrCodes: sortNewest(db.qrCodes.filter((qrCode) => qrCode.creatorId === creator.id)),
-    tips: sortNewest(db.tips.filter((tip) => tip.creatorId === creator.id)).slice(0, take)
-  }));
+  const pool = getPool();
+  const [creatorRows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators ORDER BY created_at DESC");
+  if (creatorRows.length === 0) return [];
+
+  const ids = creatorRows.map((r) => r.id);
+  const [[qrRows], [tipRows]] = await Promise.all([
+    pool.query<RowDataPacket[]>("SELECT * FROM qr_codes WHERE creator_id IN (?) ORDER BY created_at DESC", [ids]),
+    pool.query<RowDataPacket[]>("SELECT * FROM tips WHERE creator_id IN (?) ORDER BY created_at DESC", [ids]),
+  ]);
+
+  const qrCodes = (qrRows as RowDataPacket[]).map(rowToQrCode);
+  const tips = (tipRows as RowDataPacket[]).map(rowToTip);
+
+  return creatorRows.map((r) => {
+    const creator = rowToCreator(r);
+    return {
+      ...creator,
+      qrCodes: qrCodes.filter((q) => q.creatorId === creator.id),
+      tips: tips.filter((t) => t.creatorId === creator.id).slice(0, take),
+    };
+  });
 }
 
 export async function aggregateTips() {
-  const db = await readDb();
-  return db.tips.filter(isApprovedTip).reduce(
-    (totals, tip) => ({
-      count: totals.count + 1,
-      amountCents: totals.amountCents + tip.amountCents,
-      platformFeeCents: totals.platformFeeCents + tip.platformFeeCents
-    }),
-    { count: 0, amountCents: 0, platformFeeCents: 0 }
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT COALESCE(COUNT(*),0) cnt, COALESCE(SUM(amount_cents),0) amount, COALESCE(SUM(platform_fee_cents),0) fee FROM tips WHERE status = 'approved'"
   );
-}
-
-export async function getCreatorBySlug(slug: string) {
-  const db = await readDb();
-  return db.creators.find((creator) => creator.slug === slug) || null;
-}
-
-export async function getCreatorWithTips(id: string, take = 12): Promise<CreatorWithTips | null> {
-  const db = await readDb();
-  const creator = db.creators.find((item) => item.id === id);
-  if (!creator) {
-    return null;
-  }
-
   return {
-    ...creator,
-    qrCodes: sortNewest(db.qrCodes.filter((qrCode) => qrCode.creatorId === id)),
-    tips: sortNewest(db.tips.filter((tip) => tip.creatorId === id)).slice(0, take)
+    count: Number(rows[0]?.cnt ?? 0),
+    amountCents: Number(rows[0]?.amount ?? 0),
+    platformFeeCents: Number(rows[0]?.fee ?? 0),
   };
 }
 
-function addDefaultQrCodeForCreator(db: Db, creatorId: string, timestamp: string) {
-  if (db.qrCodes.some((qrCode) => qrCode.creatorId === creatorId)) {
-    return;
-  }
+export async function getCreatorBySlug(slug: string): Promise<Creator | null> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE slug = ?", [slug]);
+  return rows.length > 0 ? rowToCreator(rows[0]) : null;
+}
 
-  const baseQrId = validateQrId(creatorId);
-  let qrId = baseQrId;
+export async function getCreatorWithTips(id: string, take = 12): Promise<CreatorWithTips | null> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  if (rows.length === 0) return null;
+
+  const creator = rowToCreator(rows[0]);
+  const [[qrRows], [tipRows]] = await Promise.all([
+    pool.query<RowDataPacket[]>("SELECT * FROM qr_codes WHERE creator_id = ? ORDER BY created_at DESC", [id]),
+    pool.query<RowDataPacket[]>("SELECT * FROM tips WHERE creator_id = ? ORDER BY created_at DESC LIMIT ?", [id, take]),
+  ]);
+
+  return {
+    ...creator,
+    qrCodes: (qrRows as RowDataPacket[]).map(rowToQrCode),
+    tips: (tipRows as RowDataPacket[]).map(rowToTip),
+  };
+}
+
+export async function setCreatorActive(id: string, isActive: boolean) {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  if (rows.length === 0) throw new Error("Creador no encontrado.");
+  await pool.query("UPDATE creators SET is_active = ?, updated_at = ? WHERE id = ?", [isActive ? 1 : 0, toMySQL(now()), id]);
+  const [updated] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(updated[0]);
+}
+
+async function uniqueCreatorSlugConn(conn: PoolConnection, displayName: string): Promise<string> {
+  const base = slugify(displayName);
+  let slug = base;
   let index = 2;
-
-  while (qrIdExists(db, qrId)) {
-    qrId = `${baseQrId}-${index}`;
-    index += 1;
+  for (;;) {
+    const [rows] = await conn.query<RowDataPacket[]>("SELECT id FROM creators WHERE slug = ?", [slug]);
+    if (rows.length === 0) return slug;
+    slug = `${base}-${index++}`;
   }
-
-  db.qrCodes.push({
-    id: crypto.randomUUID(),
-    creatorId,
-    qrId,
-    createdAt: timestamp,
-    updatedAt: timestamp
-  });
 }
 
 export async function createCreatorRecord(input: {
@@ -666,151 +601,21 @@ export async function createCreatorRecord(input: {
   commissionPercent: number;
   ownerUserId?: string | null;
 }) {
-  return mutateDb((db) => {
-    if (db.creators.some((creator) => creator.slug === input.slug)) {
-      throw new Error("Ese alias ya existe.");
-    }
+  const pool = getPool();
+  const [existing] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE slug = ?", [input.slug]);
+  if (existing.length > 0) throw new Error("Ese alias ya existe.");
 
-    const timestamp = now();
-    const creator: Creator = {
-      id: crypto.randomUUID(),
-      ownerUserId: input.ownerUserId || null,
-      displayName: input.displayName,
-      slug: input.slug,
-      role: input.role || null,
-      locationName: input.locationName || null,
-      photoUrl: null,
-      mpAlias: null,
-      commissionPercent: input.commissionPercent,
-      mpUserId: null,
-      mpNickname: null,
-      mpEmail: null,
-      mpSiteId: null,
-      mpFirstName: null,
-      mpLastName: null,
-      mpCountryId: null,
-      mpPermalink: null,
-      mpAccessToken: null,
-      mpRefreshToken: null,
-      mpTokenExpiresAt: null,
-      socialLinks: null,
-      thankYouMessage: null,
-      isActive: true,
-      onboardingCompleted: false,
-      createdAt: timestamp,
-      updatedAt: timestamp
-    };
-
-    db.creators.push(creator);
-    return creator;
-  });
-}
-
-function slugify(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 42) || "creador";
-}
-
-function uniqueCreatorSlug(db: Db, value: string) {
-  const base = slugify(value);
-  let slug = base;
-  let index = 2;
-
-  while (db.creators.some((creator) => creator.slug === slug)) {
-    slug = `${base}-${index}`;
-    index += 1;
-  }
-
-  return slug;
-}
-
-export async function upsertGoogleUser(input: {
-  email: string;
-  name?: string | null;
-  picture?: string | null;
-}) {
-  return mutateDb((db) => {
-    const timestamp = now();
-    const email = normalizedEmail(input.email);
-    const role: UserRole = emailIsAdmin(email) ? "admin" : "creator";
-    let user = db.users.find((item) => normalizedEmail(item.email) === email);
-
-    let isNewUser = false;
-    if (!user) {
-      isNewUser = true;
-      user = {
-        id: crypto.randomUUID(),
-        email,
-        name: input.name || null,
-        picture: input.picture || null,
-        role,
-        creatorId: null,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        lastLoginAt: timestamp
-      };
-      db.users.push(user);
-    }
-
-    user.name = input.name || user.name || null;
-    user.picture = input.picture || user.picture || null;
-    user.role = role;
-    user.updatedAt = timestamp;
-    user.lastLoginAt = timestamp;
-
-    if (role === "creator") {
-      let creator = user.creatorId
-        ? db.creators.find((item) => item.id === user.creatorId)
-        : null;
-
-      if (!creator) {
-        creator = {
-          id: crypto.randomUUID(),
-          ownerUserId: user.id,
-          displayName: input.name || email.split("@")[0],
-          slug: uniqueCreatorSlug(db, input.name || email.split("@")[0]),
-          role: "Creador",
-          locationName: null,
-          photoUrl: input.picture || null,
-          mpAlias: null,
-          commissionPercent: 5,
-          mpUserId: null,
-          mpNickname: null,
-          mpEmail: null,
-          mpSiteId: null,
-          mpFirstName: null,
-          mpLastName: null,
-          mpCountryId: null,
-          mpPermalink: null,
-          mpAccessToken: null,
-          mpRefreshToken: null,
-          mpTokenExpiresAt: null,
-          socialLinks: null,
-          thankYouMessage: null,
-          isActive: true,
-          onboardingCompleted: false,
-          createdAt: timestamp,
-          updatedAt: timestamp
-        };
-        db.creators.push(creator);
-      } else {
-        creator.ownerUserId = user.id;
-        creator.photoUrl = input.picture || creator.photoUrl || null;
-        creator.updatedAt = timestamp;
-      }
-
-      user.creatorId = creator.id;
-    } else {
-      user.creatorId = null;
-    }
-
-    return { user, isNewUser };
-  });
+  const timestamp = now();
+  const id = crypto.randomUUID();
+  await pool.query(
+    `INSERT INTO creators
+       (id, owner_user_id, display_name, slug, role, location_name, commission_percent, is_active, onboarding_completed, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)`,
+    [id, input.ownerUserId ?? null, input.displayName, input.slug, input.role ?? null,
+     input.locationName ?? null, input.commissionPercent, toMySQL(timestamp), toMySQL(timestamp)]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(rows[0]);
 }
 
 export async function updateCreatorRecord(
@@ -823,330 +628,145 @@ export async function updateCreatorRecord(
     commissionPercent: number;
   }
 ) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === id);
-    if (!creator) {
-      throw new Error("Creador no encontrado.");
-    }
+  const pool = getPool();
+  const [exists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [id]);
+  if (exists.length === 0) throw new Error("Creador no encontrado.");
 
-    if (db.creators.some((item) => item.id !== id && item.slug === input.slug)) {
-      throw new Error("Ese alias ya existe.");
-    }
+  const [slugConflict] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE slug = ? AND id != ?", [input.slug, id]);
+  if (slugConflict.length > 0) throw new Error("Ese alias ya existe.");
 
-    Object.assign(creator, {
-      displayName: input.displayName,
-      slug: input.slug,
-      role: input.role || null,
-      locationName: input.locationName || null,
-      commissionPercent: input.commissionPercent,
-      updatedAt: now()
-    });
-
-    return creator;
-  });
-}
-
-export async function deleteCreatorRecord(id: string) {
-  return mutateDb((db) => {
-    const creatorIndex = db.creators.findIndex((item) => item.id === id);
-    if (creatorIndex === -1) {
-      throw new Error("Creador no encontrado.");
-    }
-
-    const [creator] = db.creators.splice(creatorIndex, 1);
-    const tipIds = new Set(db.tips.filter((tip) => tip.creatorId === id).map((tip) => tip.id));
-
-    db.qrCodes = db.qrCodes.filter((qrCode) => qrCode.creatorId !== id);
-    db.tips = db.tips.filter((tip) => tip.creatorId !== id);
-    db.notifications = db.notifications.filter((notification) => notification.creatorId !== id);
-    db.paymentEvents = db.paymentEvents.filter((event) => !event.tipId || !tipIds.has(event.tipId));
-
-    for (const user of db.users) {
-      if (user.creatorId === id) {
-        user.creatorId = null;
-        user.updatedAt = now();
-      }
-    }
-
-    return creator;
-  });
+  await pool.query(
+    "UPDATE creators SET display_name=?, slug=?, role=?, location_name=?, commission_percent=?, updated_at=? WHERE id=?",
+    [input.displayName, input.slug, input.role ?? null, input.locationName ?? null, input.commissionPercent, toMySQL(now()), id]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(rows[0]);
 }
 
 export async function updateCreatorProfileRecord(
   id: string,
-  input: {
-    displayName: string;
-    slug: string;
-    role?: string | null;
-    locationName?: string | null;
-  }
+  input: { displayName: string; slug: string; role?: string | null; locationName?: string | null }
 ) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === id);
-    if (!creator) {
-      throw new Error("Creador no encontrado.");
-    }
+  const pool = getPool();
+  const [exists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [id]);
+  if (exists.length === 0) throw new Error("Creador no encontrado.");
 
-    if (db.creators.some((item) => item.id !== id && item.slug === input.slug)) {
-      throw new Error("Ese alias ya existe.");
-    }
+  const [slugConflict] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE slug = ? AND id != ?", [input.slug, id]);
+  if (slugConflict.length > 0) throw new Error("Ese alias ya existe.");
 
-    Object.assign(creator, {
-      displayName: input.displayName,
-      slug: input.slug,
-      role: input.role || null,
-      locationName: input.locationName || null,
-      updatedAt: now()
-    });
-
-    return creator;
-  });
+  await pool.query(
+    "UPDATE creators SET display_name=?, slug=?, role=?, location_name=?, updated_at=? WHERE id=?",
+    [input.displayName, input.slug, input.role ?? null, input.locationName ?? null, toMySQL(now()), id]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(rows[0]);
 }
 
 export async function updateCreatorSocialsRecord(id: string, input: SocialLinks) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === id);
-    if (!creator) throw new Error("Creador no encontrado.");
-    creator.socialLinks = {
-      instagram: input.instagram || null,
-      tiktok: input.tiktok || null,
-      x: input.x || null,
-      facebook: input.facebook || null,
-      youtube: input.youtube || null
-    };
-    creator.updatedAt = now();
-    return creator;
-  });
+  const pool = getPool();
+  const [exists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [id]);
+  if (exists.length === 0) throw new Error("Creador no encontrado.");
+
+  const socialLinks: SocialLinks = {
+    instagram: input.instagram || null,
+    tiktok: input.tiktok || null,
+    x: input.x || null,
+    facebook: input.facebook || null,
+    youtube: input.youtube || null,
+  };
+  await pool.query("UPDATE creators SET social_links=?, updated_at=? WHERE id=?", [JSON.stringify(socialLinks), toMySQL(now()), id]);
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(rows[0]);
 }
 
 export async function updateCreatorThankYouRecord(id: string, thankYouMessage: string | null) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === id);
-    if (!creator) throw new Error("Creador no encontrado.");
-    creator.thankYouMessage = thankYouMessage || null;
-    creator.updatedAt = now();
-    return creator;
-  });
+  const pool = getPool();
+  const [exists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [id]);
+  if (exists.length === 0) throw new Error("Creador no encontrado.");
+  await pool.query("UPDATE creators SET thank_you_message=?, updated_at=? WHERE id=?", [thankYouMessage || null, toMySQL(now()), id]);
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(rows[0]);
 }
 
 export async function setCreatorOnboardingCompletedRecord(id: string) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === id);
-    if (!creator) throw new Error("Creador no encontrado.");
-    creator.onboardingCompleted = true;
-    creator.updatedAt = now();
+  const pool = getPool();
+  const [exists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [id]);
+  if (exists.length === 0) throw new Error("Creador no encontrado.");
+  await pool.query("UPDATE creators SET onboarding_completed=1, updated_at=? WHERE id=?", [toMySQL(now()), id]);
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(rows[0]);
+}
+
+export async function deleteCreatorRecord(id: string) {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+    if (rows.length === 0) throw new Error("Creador no encontrado.");
+    const creator = rowToCreator(rows[0]);
+
+    const [tipRows] = await conn.query<RowDataPacket[]>("SELECT id FROM tips WHERE creator_id = ?", [id]);
+    const tipIds = (tipRows as RowDataPacket[]).map((r) => r.id);
+    if (tipIds.length > 0) {
+      await conn.query("DELETE FROM payment_events WHERE tip_id IN (?)", [tipIds]);
+    }
+    await conn.query("DELETE FROM tips WHERE creator_id = ?", [id]);
+    await conn.query("DELETE FROM qr_codes WHERE creator_id = ?", [id]);
+    await conn.query("DELETE FROM notifications WHERE creator_id = ?", [id]);
+    await conn.query("DELETE FROM creators WHERE id = ?", [id]);
+    await conn.query("UPDATE users SET creator_id = NULL, updated_at = ? WHERE creator_id = ?", [toMySQL(now()), id]);
+    await conn.commit();
     return creator;
-  });
-}
-
-export function normalizeMercadoPagoAlias(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function validateMercadoPagoAlias(value: string) {
-  const alias = normalizeMercadoPagoAlias(value);
-  if (!alias) {
-    throw new Error("Ingresa un alias de Mercado Pago.");
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
   }
-
-  if (!/^[a-z0-9](?:[a-z0-9.-]{4,38}[a-z0-9])$/.test(alias)) {
-    throw new Error("Usa entre 6 y 40 caracteres: letras, números, punto o guion.");
-  }
-
-  return alias;
 }
 
-function mercadoPagoAliasExists(db: Db, alias: string, exceptCreatorId?: string | null) {
-  return db.creators.some(
-    (creator) => creator.id !== exceptCreatorId && creator.mpAlias === alias
-  );
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// Mercado Pago alias
+// ═══════════════════════════════════════════════════════════════════════════
 
 export async function checkMercadoPagoAlias(input: string, exceptCreatorId?: string | null) {
   try {
     const alias = validateMercadoPagoAlias(input);
-    const db = await readDb();
-    const exists = mercadoPagoAliasExists(db, alias, exceptCreatorId);
-
+    const pool = getPool();
+    const query = exceptCreatorId
+      ? "SELECT id FROM creators WHERE mp_alias = ? AND id != ?"
+      : "SELECT id FROM creators WHERE mp_alias = ?";
+    const params = exceptCreatorId ? [alias, exceptCreatorId] : [alias];
+    const [rows] = await pool.query<RowDataPacket[]>(query, params);
+    const exists = rows.length > 0;
     return {
-      alias,
-      exists,
-      available: !exists,
-      valid: true,
-      message: exists
-        ? "Ese alias ya esta cargado en qrpropina."
-        : "Alias disponible en qrpropina."
+      alias, exists, available: !exists, valid: true,
+      message: exists ? "Ese alias ya esta cargado en qrpropina." : "Alias disponible en qrpropina.",
     };
   } catch (error) {
     return {
       alias: normalizeMercadoPagoAlias(input),
-      exists: false,
-      available: false,
-      valid: false,
-      message: error instanceof Error ? error.message : "Alias inválido."
+      exists: false, available: false, valid: false,
+      message: error instanceof Error ? error.message : "Alias inválido.",
     };
   }
 }
 
 export async function updateCreatorMercadoPagoAliasRecord(id: string, aliasInput: string) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === id);
-    if (!creator) {
-      throw new Error("Creador no encontrado.");
-    }
+  const pool = getPool();
+  const alias = validateMercadoPagoAlias(aliasInput);
+  const [conflict] = await pool.query<RowDataPacket[]>(
+    "SELECT id FROM creators WHERE mp_alias = ? AND id != ?", [alias, id]
+  );
+  if (conflict.length > 0) throw new Error("Ese alias ya esta cargado en qrpropina.");
 
-    const alias = validateMercadoPagoAlias(aliasInput);
-    if (mercadoPagoAliasExists(db, alias, id)) {
-      throw new Error("Ese alias ya esta cargado en qrpropina.");
-    }
+  const [exists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [id]);
+  if (exists.length === 0) throw new Error("Creador no encontrado.");
 
-    creator.mpAlias = alias;
-    creator.updatedAt = now();
-    return creator;
-  });
-}
-
-export function normalizeQrId(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function validateQrId(value: string) {
-  const qrId = normalizeQrId(value);
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(qrId)) {
-    throw new Error("El ID del QR solo puede tener letras, números y guiones.");
-  }
-
-  if (qrId.length > 64) {
-    throw new Error("El ID del QR no puede superar 64 caracteres.");
-  }
-
-  return qrId;
-}
-
-function qrIdExists(db: Db, qrId: string, exceptRecordId?: string | null) {
-  return db.qrCodes.some((item) => item.id !== exceptRecordId && item.qrId === qrId);
-}
-
-export async function checkQrIdAvailability(input: string, exceptRecordId?: string | null) {
-  try {
-    const qrId = validateQrId(input);
-    const db = await readDb();
-    const exists = qrIdExists(db, qrId, exceptRecordId);
-
-    return {
-      qrId,
-      exists,
-      available: !exists,
-      valid: true,
-      message: exists ? "QR existente." : "ID disponible."
-    };
-  } catch (error) {
-    return {
-      qrId: normalizeQrId(input),
-      exists: false,
-      available: false,
-      valid: false,
-      message: error instanceof Error ? error.message : "ID inválido."
-    };
-  }
-}
-
-export async function createQrCodeRecord(input: { creatorId: string; qrId: string }) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === input.creatorId);
-    if (!creator) {
-      throw new Error("Creador no encontrado.");
-    }
-
-    const creatorQrCount = db.qrCodes.filter((item) => item.creatorId === input.creatorId).length;
-    if (creatorQrCount >= 30) {
-      throw new Error("Cada creador puede tener como máximo 30 QR.");
-    }
-
-    const qrId = validateQrId(input.qrId);
-    if (qrIdExists(db, qrId)) {
-      throw new Error("Ese ID ya existe.");
-    }
-
-    const timestamp = now();
-    const qrCode: CreatorQrCode = {
-      id: crypto.randomUUID(),
-      creatorId: input.creatorId,
-      qrId,
-      createdAt: timestamp,
-      updatedAt: timestamp
-    };
-
-    db.qrCodes.push(qrCode);
-    return qrCode;
-  });
-}
-
-export async function updateQrCodeRecord(input: {
-  creatorId: string;
-  recordId: string;
-  qrId: string;
-}) {
-  return mutateDb((db) => {
-    const qrCode = db.qrCodes.find(
-      (item) => item.id === input.recordId && item.creatorId === input.creatorId
-    );
-    if (!qrCode) {
-      throw new Error("QR no encontrado.");
-    }
-
-    const qrId = validateQrId(input.qrId);
-    if (qrIdExists(db, qrId, input.recordId)) {
-      throw new Error("Ese ID ya existe.");
-    }
-
-    qrCode.qrId = qrId;
-    qrCode.updatedAt = now();
-    return qrCode;
-  });
-}
-
-export async function deleteQrCodeRecord(input: { creatorId: string; recordId: string }) {
-  return mutateDb((db) => {
-    const index = db.qrCodes.findIndex(
-      (item) => item.id === input.recordId && item.creatorId === input.creatorId
-    );
-    if (index === -1) {
-      throw new Error("QR no encontrado.");
-    }
-
-    const [deleted] = db.qrCodes.splice(index, 1);
-    return deleted;
-  });
-}
-
-export async function getQrCodeWithCreatorByQrId(qrIdInput: string): Promise<QrCodeWithCreator | null> {
-  const qrId = normalizeQrId(qrIdInput);
-  const db = await readDb();
-  const qrCode = db.qrCodes.find((item) => item.qrId === qrId);
-  if (!qrCode) {
-    return null;
-  }
-
-  const creator = db.creators.find((item) => item.id === qrCode.creatorId);
-  if (!creator) {
-    return null;
-  }
-
-  return { ...qrCode, creator };
-}
-
-export async function setCreatorActive(id: string, isActive: boolean) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === id);
-    if (!creator) {
-      throw new Error("Creador no encontrado.");
-    }
-
-    creator.isActive = isActive;
-    creator.updatedAt = now();
-    return creator;
-  });
+  await pool.query("UPDATE creators SET mp_alias=?, updated_at=? WHERE id=?", [alias, toMySQL(now()), id]);
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(rows[0]);
 }
 
 export async function connectCreatorMercadoPago(
@@ -1167,62 +787,230 @@ export async function connectCreatorMercadoPago(
     } | null;
   }
 ) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === id);
-    if (!creator) {
-      throw new Error("Creador no encontrado.");
-    }
+  const pool = getPool();
+  const [exists] = await pool.query<RowDataPacket[]>("SELECT id, mp_alias FROM creators WHERE id = ?", [id]);
+  if (exists.length === 0) throw new Error("Creador no encontrado.");
 
-    creator.mpUserId = input.userId;
-    creator.mpNickname = input.account?.nickname || null;
-    creator.mpEmail = input.account?.email || null;
-    creator.mpSiteId = input.account?.siteId || null;
-    creator.mpFirstName = input.account?.firstName || null;
-    creator.mpLastName = input.account?.lastName || null;
-    creator.mpCountryId = input.account?.countryId || null;
-    creator.mpPermalink = input.account?.permalink || null;
+  let mpAlias: string | null = exists[0].mp_alias ?? null;
+  if (input.account?.nickname) {
+    try {
+      const detectedAlias = validateMercadoPagoAlias(input.account.nickname);
+      const [conflict] = await pool.query<RowDataPacket[]>(
+        "SELECT id FROM creators WHERE mp_alias = ? AND id != ?", [detectedAlias, id]
+      );
+      if (conflict.length === 0) mpAlias = detectedAlias;
+    } catch { /* nickname may not match our alias format */ }
+  }
 
-    if (input.account?.nickname) {
-      try {
-        const detectedAlias = validateMercadoPagoAlias(input.account.nickname);
-        if (!mercadoPagoAliasExists(db, detectedAlias, id)) {
-          creator.mpAlias = detectedAlias;
-        }
-      } catch {
-        // El nickname de Mercado Pago puede no respetar nuestro formato de alias.
-      }
-    }
-
-    creator.mpAccessToken = input.accessToken;
-    creator.mpRefreshToken = input.refreshToken;
-    creator.mpTokenExpiresAt = input.expiresAt?.toISOString() || null;
-    creator.updatedAt = now();
-    return creator;
-  });
+  const timestamp = toMySQL(now());
+  await pool.query(
+    `UPDATE creators SET
+       mp_user_id=?, mp_nickname=?, mp_email=?, mp_site_id=?, mp_first_name=?, mp_last_name=?,
+       mp_country_id=?, mp_permalink=?, mp_access_token=?, mp_refresh_token=?, mp_token_expires_at=?,
+       mp_alias=?, updated_at=? WHERE id=?`,
+    [
+      input.userId, input.account?.nickname ?? null, input.account?.email ?? null,
+      input.account?.siteId ?? null, input.account?.firstName ?? null, input.account?.lastName ?? null,
+      input.account?.countryId ?? null, input.account?.permalink ?? null,
+      input.accessToken, input.refreshToken,
+      input.expiresAt ? toMySQL(input.expiresAt.toISOString()) : null,
+      mpAlias, timestamp, id,
+    ]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(rows[0]);
 }
 
 export async function disconnectCreatorMercadoPagoRecord(id: string) {
-  return mutateDb((db) => {
-    const creator = db.creators.find((item) => item.id === id);
-    if (!creator) {
-      throw new Error("Creador no encontrado.");
+  const pool = getPool();
+  const [exists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [id]);
+  if (exists.length === 0) throw new Error("Creador no encontrado.");
+
+  await pool.query(
+    `UPDATE creators SET
+       mp_user_id=NULL, mp_nickname=NULL, mp_email=NULL, mp_site_id=NULL,
+       mp_first_name=NULL, mp_last_name=NULL, mp_country_id=NULL, mp_permalink=NULL,
+       mp_access_token=NULL, mp_refresh_token=NULL, mp_token_expires_at=NULL, updated_at=? WHERE id=?`,
+    [toMySQL(now()), id]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [id]);
+  return rowToCreator(rows[0]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// QR Codes
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function checkQrIdAvailability(input: string, exceptRecordId?: string | null) {
+  try {
+    const qrId = validateQrId(input);
+    const pool = getPool();
+    const query = exceptRecordId
+      ? "SELECT id FROM qr_codes WHERE qr_id = ? AND id != ?"
+      : "SELECT id FROM qr_codes WHERE qr_id = ?";
+    const params = exceptRecordId ? [qrId, exceptRecordId] : [qrId];
+    const [rows] = await pool.query<RowDataPacket[]>(query, params);
+    const exists = rows.length > 0;
+    return { qrId, exists, available: !exists, valid: true, message: exists ? "QR existente." : "ID disponible." };
+  } catch (error) {
+    return {
+      qrId: normalizeQrId(input), exists: false, available: false, valid: false,
+      message: error instanceof Error ? error.message : "ID inválido.",
+    };
+  }
+}
+
+export async function createQrCodeRecord(input: { creatorId: string; qrId: string }) {
+  const pool = getPool();
+  const [creatorExists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [input.creatorId]);
+  if (creatorExists.length === 0) throw new Error("Creador no encontrado.");
+
+  const [countRows] = await pool.query<RowDataPacket[]>("SELECT COUNT(*) cnt FROM qr_codes WHERE creator_id = ?", [input.creatorId]);
+  if (Number(countRows[0].cnt) >= 30) throw new Error("Cada creador puede tener como máximo 30 QR.");
+
+  const qrId = validateQrId(input.qrId);
+  const [qrExists] = await pool.query<RowDataPacket[]>("SELECT id FROM qr_codes WHERE qr_id = ?", [qrId]);
+  if (qrExists.length > 0) throw new Error("Ese ID ya existe.");
+
+  const timestamp = now();
+  const id = crypto.randomUUID();
+  await pool.query(
+    "INSERT INTO qr_codes (id, creator_id, qr_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    [id, input.creatorId, qrId, toMySQL(timestamp), toMySQL(timestamp)]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM qr_codes WHERE id = ?", [id]);
+  return rowToQrCode(rows[0]);
+}
+
+export async function updateQrCodeRecord(input: { creatorId: string; recordId: string; qrId: string }) {
+  const pool = getPool();
+  const [existing] = await pool.query<RowDataPacket[]>(
+    "SELECT id FROM qr_codes WHERE id = ? AND creator_id = ?", [input.recordId, input.creatorId]
+  );
+  if (existing.length === 0) throw new Error("QR no encontrado.");
+
+  const qrId = validateQrId(input.qrId);
+  const [conflict] = await pool.query<RowDataPacket[]>("SELECT id FROM qr_codes WHERE qr_id = ? AND id != ?", [qrId, input.recordId]);
+  if (conflict.length > 0) throw new Error("Ese ID ya existe.");
+
+  await pool.query("UPDATE qr_codes SET qr_id=?, updated_at=? WHERE id=?", [qrId, toMySQL(now()), input.recordId]);
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM qr_codes WHERE id = ?", [input.recordId]);
+  return rowToQrCode(rows[0]);
+}
+
+export async function deleteQrCodeRecord(input: { creatorId: string; recordId: string }) {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT * FROM qr_codes WHERE id = ? AND creator_id = ?", [input.recordId, input.creatorId]
+  );
+  if (rows.length === 0) throw new Error("QR no encontrado.");
+  await pool.query("DELETE FROM qr_codes WHERE id = ?", [input.recordId]);
+  return rowToQrCode(rows[0]);
+}
+
+export async function getQrCodeWithCreatorByQrId(qrIdInput: string): Promise<QrCodeWithCreator | null> {
+  const qrId = normalizeQrId(qrIdInput);
+  const pool = getPool();
+  const [qrRows] = await pool.query<RowDataPacket[]>("SELECT * FROM qr_codes WHERE qr_id = ?", [qrId]);
+  if (qrRows.length === 0) return null;
+
+  const qrCode = rowToQrCode(qrRows[0]);
+  const [creatorRows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [qrCode.creatorId]);
+  if (creatorRows.length === 0) return null;
+
+  return { ...qrCode, creator: rowToCreator(creatorRows[0]) };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Users
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function upsertGoogleUser(input: {
+  email: string;
+  name?: string | null;
+  picture?: string | null;
+}) {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const timestamp = now();
+    const mysqlTs = toMySQL(timestamp)!;
+    const email = normalizedEmail(input.email);
+    const role: UserRole = emailIsAdmin(email) ? "admin" : "creator";
+
+    const [existingUsers] = await conn.query<RowDataPacket[]>("SELECT * FROM users WHERE email = ?", [email]);
+    let user: User;
+    let isNewUser = false;
+
+    if (existingUsers.length === 0) {
+      isNewUser = true;
+      const uid = crypto.randomUUID();
+      await conn.query(
+        "INSERT INTO users (id, email, name, picture, role, creator_id, created_at, updated_at, last_login_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)",
+        [uid, email, input.name ?? null, input.picture ?? null, role, mysqlTs, mysqlTs, mysqlTs]
+      );
+      const [newRows] = await conn.query<RowDataPacket[]>("SELECT * FROM users WHERE id = ?", [uid]);
+      user = rowToUser(newRows[0]);
+    } else {
+      user = rowToUser(existingUsers[0]);
+      user.name = input.name || user.name || null;
+      user.picture = input.picture || user.picture || null;
+      user.role = role;
+      await conn.query(
+        "UPDATE users SET name=?, picture=?, role=?, updated_at=?, last_login_at=? WHERE id=?",
+        [user.name, user.picture, role, mysqlTs, mysqlTs, user.id]
+      );
     }
 
-    creator.mpUserId = null;
-    creator.mpNickname = null;
-    creator.mpEmail = null;
-    creator.mpSiteId = null;
-    creator.mpFirstName = null;
-    creator.mpLastName = null;
-    creator.mpCountryId = null;
-    creator.mpPermalink = null;
-    creator.mpAccessToken = null;
-    creator.mpRefreshToken = null;
-    creator.mpTokenExpiresAt = null;
-    creator.updatedAt = now();
-    return creator;
-  });
+    if (role === "creator") {
+      let creator: Creator | null = null;
+      if (user.creatorId) {
+        const [cr] = await conn.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [user.creatorId]);
+        if (cr.length > 0) creator = rowToCreator(cr[0]);
+      }
+
+      if (!creator) {
+        const displayName = input.name || email.split("@")[0];
+        const slug = await uniqueCreatorSlugConn(conn, displayName);
+        const cid = crypto.randomUUID();
+        await conn.query(
+          `INSERT INTO creators
+             (id, owner_user_id, display_name, slug, role, location_name, photo_url, commission_percent, is_active, onboarding_completed, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 'Creador', NULL, ?, 5, 1, 0, ?, ?)`,
+          [cid, user.id, displayName, slug, input.picture ?? null, mysqlTs, mysqlTs]
+        );
+        const [cr] = await conn.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [cid]);
+        creator = rowToCreator(cr[0]);
+      } else {
+        await conn.query(
+          "UPDATE creators SET owner_user_id=?, photo_url=COALESCE(?, photo_url), updated_at=? WHERE id=?",
+          [user.id, input.picture ?? null, mysqlTs, creator.id]
+        );
+        const [cr] = await conn.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [creator.id]);
+        creator = rowToCreator(cr[0]);
+      }
+
+      await conn.query("UPDATE users SET creator_id=? WHERE id=?", [creator.id, user.id]);
+      user.creatorId = creator.id;
+    } else {
+      await conn.query("UPDATE users SET creator_id=NULL WHERE id=?", [user.id]);
+      user.creatorId = null;
+    }
+
+    await conn.commit();
+    return { user, isNewUser };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tips
+// ═══════════════════════════════════════════════════════════════════════════
 
 export async function createTipRecord(input: {
   creatorId: string;
@@ -1231,55 +1019,59 @@ export async function createTipRecord(input: {
   payerEmail?: string | null;
   externalReference: string;
 }) {
-  return mutateDb((db) => {
-    const timestamp = now();
-    const tip: Tip = {
-      id: crypto.randomUUID(),
-      creatorId: input.creatorId,
-      amountCents: input.amountCents,
-      platformFeeCents: input.platformFeeCents,
-      currency: "ARS",
-      status: "created",
-      preferenceId: null,
-      paymentId: null,
-      externalReference: input.externalReference,
-      checkoutUrl: null,
-      payerEmail: input.payerEmail || null,
-      rawPayment: null,
-      createdAt: timestamp,
-      updatedAt: timestamp
-    };
-
-    db.tips.push(tip);
-    return tip;
-  });
+  const pool = getPool();
+  const timestamp = now();
+  const id = crypto.randomUUID();
+  await pool.query(
+    `INSERT INTO tips (id, creator_id, amount_cents, platform_fee_cents, currency, status, external_reference, payer_email, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'ARS', 'created', ?, ?, ?, ?)`,
+    [id, input.creatorId, input.amountCents, input.platformFeeCents,
+     input.externalReference, input.payerEmail ?? null, toMySQL(timestamp), toMySQL(timestamp)]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM tips WHERE id = ?", [id]);
+  return rowToTip(rows[0]);
 }
 
 export async function updateTipRecord(id: string, data: Partial<Omit<Tip, "id" | "createdAt">>) {
-  return mutateDb((db) => {
-    const tip = db.tips.find((item) => item.id === id);
-    if (!tip) {
-      throw new Error("Propina no encontrada.");
-    }
+  const pool = getPool();
+  const [existing] = await pool.query<RowDataPacket[]>("SELECT id FROM tips WHERE id = ?", [id]);
+  if (existing.length === 0) throw new Error("Propina no encontrada.");
 
-    Object.assign(tip, data, { updatedAt: now() });
-    return tip;
-  });
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  const colMap: Record<string, string> = {
+    creatorId: "creator_id", amountCents: "amount_cents", platformFeeCents: "platform_fee_cents",
+    currency: "currency", status: "status", preferenceId: "preference_id", paymentId: "payment_id",
+    externalReference: "external_reference", checkoutUrl: "checkout_url",
+    payerEmail: "payer_email", rawPayment: "raw_payment", updatedAt: "updated_at",
+  };
+
+  for (const [key, val] of Object.entries(data)) {
+    const col = colMap[key];
+    if (!col || col === "updated_at") continue;
+    fields.push(`${col} = ?`);
+    values.push(val);
+  }
+  fields.push("updated_at = ?");
+  values.push(toMySQL(now()));
+  values.push(id);
+
+  await pool.query(`UPDATE tips SET ${fields.join(", ")} WHERE id = ?`, values);
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM tips WHERE id = ?", [id]);
+  return rowToTip(rows[0]);
 }
 
 export async function getTipWithCreator(id: string): Promise<TipWithCreator | null> {
-  const db = await readDb();
-  const tip = db.tips.find((item) => item.id === id);
-  if (!tip) {
-    return null;
-  }
+  const pool = getPool();
+  const [tipRows] = await pool.query<RowDataPacket[]>("SELECT * FROM tips WHERE id = ?", [id]);
+  if (tipRows.length === 0) return null;
 
-  const creator = db.creators.find((item) => item.id === tip.creatorId);
-  if (!creator) {
-    return null;
-  }
+  const tip = rowToTip(tipRows[0]);
+  const [creatorRows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [tip.creatorId]);
+  if (creatorRows.length === 0) return null;
 
-  return { ...tip, creator };
+  return { ...tip, creator: rowToCreator(creatorRows[0]) };
 }
 
 export async function updateTipFromPayment(input: {
@@ -1289,122 +1081,57 @@ export async function updateTipFromPayment(input: {
   status: string;
   rawPayment: string;
 }) {
-  return mutateDb((db) => {
-    const tip = db.tips.find((item) => {
-      if (input.tipId && item.id === input.tipId) {
-        return true;
-      }
-      if (input.externalReference && item.externalReference === input.externalReference) {
-        return true;
-      }
-      return Boolean(input.paymentId && item.paymentId === input.paymentId);
-    });
+  const pool = getPool();
+  const conditions: string[] = [];
+  const params: unknown[] = [];
 
-    if (!tip) {
-      return null;
-    }
+  if (input.tipId)            { conditions.push("id = ?");                   params.push(input.tipId); }
+  if (input.externalReference){ conditions.push("external_reference = ?");   params.push(input.externalReference); }
+  if (input.paymentId)        { conditions.push("payment_id = ?");           params.push(input.paymentId); }
 
-    tip.paymentId = input.paymentId || tip.paymentId;
-    tip.status = input.status;
-    tip.rawPayment = input.rawPayment;
-    tip.updatedAt = now();
-    return tip;
-  });
-}
+  if (conditions.length === 0) return null;
 
-export async function addPaymentEvent(input: {
-  tipId?: string | null;
-  eventType: string;
-  payload: string;
-}) {
-  await mutateDb((db) => {
-    db.paymentEvents.push({
-      id: crypto.randomUUID(),
-      tipId: input.tipId || null,
-      eventType: input.eventType,
-      payload: input.payload,
-      createdAt: now()
-    });
-  });
-}
-
-export async function listPaymentEvents(limit = 200): Promise<PaymentEvent[]> {
-  const db = await readDb();
-  return sortNewest(db.paymentEvents).slice(0, limit);
-}
-
-export async function listNotificationsForCreator(
-  creatorId: string,
-  page = 1,
-  pageSize = 30
-): Promise<{ items: Notification[]; total: number; totalPages: number }> {
-  const db = await readDb();
-  const all = sortNewest(
-    db.notifications.filter((n) => n.creatorId === creatorId && n.isVisible)
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT * FROM tips WHERE ${conditions.join(" OR ")} LIMIT 1`, params
   );
-  const total = all.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-  const offset = (safePage - 1) * pageSize;
-  return { items: all.slice(offset, offset + pageSize), total, totalPages };
-}
+  if (rows.length === 0) return null;
 
-export async function countUnreadNotificationsForCreator(creatorId: string): Promise<number> {
-  const db = await readDb();
-  return db.notifications.filter(
-    (n) => n.creatorId === creatorId && n.isVisible && !n.isRead
-  ).length;
-}
-
-export async function softDeleteNotificationRecord(id: string, creatorId: string) {
-  return mutateDb((db) => {
-    const n = db.notifications.find((item) => item.id === id && item.creatorId === creatorId);
-    if (!n) throw new Error("Notificación no encontrada.");
-    n.isVisible = false;
-    n.updatedAt = now();
-    return n;
-  });
-}
-
-export async function markNotificationsReadForCreator(creatorId: string) {
-  return mutateDb((db) => {
-    const timestamp = now();
-    let count = 0;
-    for (const n of db.notifications) {
-      if (n.creatorId === creatorId && n.isVisible && !n.isRead) {
-        n.isRead = true;
-        n.updatedAt = timestamp;
-        count++;
-      }
-    }
-    return count;
-  });
-}
-
-export async function setColorOverrides(overrides: Record<string, string>) {
-  return mutateDb((db) => {
-    db.settings.colorOverrides = overrides;
-    db.settings.updatedAt = now();
-    return db.settings;
-  });
+  const tip = rowToTip(rows[0]);
+  await pool.query(
+    "UPDATE tips SET payment_id=COALESCE(?, payment_id), status=?, raw_payment=?, updated_at=? WHERE id=?",
+    [input.paymentId ?? null, input.status, input.rawPayment, toMySQL(now()), tip.id]
+  );
+  const [updated] = await pool.query<RowDataPacket[]>("SELECT * FROM tips WHERE id = ?", [tip.id]);
+  return rowToTip(updated[0]);
 }
 
 export async function listApprovedTipsWithCreators(
   page = 1,
   pageSize = 30
 ): Promise<{ items: TipWithCreator[]; total: number; totalPages: number }> {
-  const db = await readDb();
-  const all = sortNewest(db.tips.filter(isApprovedTip))
-    .map((tip) => {
-      const creator = db.creators.find((c) => c.id === tip.creatorId);
-      return creator ? { ...tip, creator } : null;
-    })
-    .filter((t): t is TipWithCreator => t !== null);
-  const total = all.length;
+  const pool = getPool();
+  const [[countRows], [rows]] = await Promise.all([
+    pool.query<RowDataPacket[]>("SELECT COUNT(*) cnt FROM tips WHERE status = 'approved'"),
+    pool.query<RowDataPacket[]>(
+      "SELECT * FROM tips WHERE status = 'approved' ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      [pageSize, (page - 1) * pageSize]
+    ),
+  ]);
+  const total = Number(countRows[0]?.cnt ?? 0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-  const offset = (safePage - 1) * pageSize;
-  return { items: all.slice(offset, offset + pageSize), total, totalPages };
+
+  const tips = (rows as RowDataPacket[]).map(rowToTip);
+  if (tips.length === 0) return { items: [], total, totalPages };
+
+  const ids = [...new Set(tips.map((t) => t.creatorId))];
+  const [creatorRows] = await pool.query<RowDataPacket[]>("SELECT * FROM creators WHERE id IN (?)", [ids]);
+  const creatorsById = Object.fromEntries((creatorRows as RowDataPacket[]).map((r) => [r.id, rowToCreator(r)]));
+
+  const items = tips
+    .map((tip) => creatorsById[tip.creatorId] ? { ...tip, creator: creatorsById[tip.creatorId] } : null)
+    .filter((t): t is TipWithCreator => t !== null);
+
+  return { items, total, totalPages };
 }
 
 export async function listApprovedTipsForCreator(
@@ -1412,15 +1139,90 @@ export async function listApprovedTipsForCreator(
   page = 1,
   pageSize = 30
 ): Promise<{ items: Tip[]; total: number; totalPages: number }> {
-  const db = await readDb();
-  const all = sortNewest(
-    db.tips.filter((tip) => tip.creatorId === creatorId && isApprovedTip(tip))
-  );
-  const total = all.length;
+  const pool = getPool();
+  const [[countRows], [rows]] = await Promise.all([
+    pool.query<RowDataPacket[]>("SELECT COUNT(*) cnt FROM tips WHERE creator_id = ? AND status = 'approved'", [creatorId]),
+    pool.query<RowDataPacket[]>(
+      "SELECT * FROM tips WHERE creator_id = ? AND status = 'approved' ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      [creatorId, pageSize, (page - 1) * pageSize]
+    ),
+  ]);
+  const total = Number(countRows[0]?.cnt ?? 0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-  const offset = (safePage - 1) * pageSize;
-  return { items: all.slice(offset, offset + pageSize), total, totalPages };
+  return { items: (rows as RowDataPacket[]).map(rowToTip), total, totalPages };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Payment events
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function addPaymentEvent(input: {
+  tipId?: string | null;
+  eventType: string;
+  payload: string;
+}) {
+  const pool = getPool();
+  const id = crypto.randomUUID();
+  await pool.query(
+    "INSERT INTO payment_events (id, tip_id, event_type, payload, created_at) VALUES (?, ?, ?, ?, ?)",
+    [id, input.tipId ?? null, input.eventType, input.payload, toMySQL(now())]
+  );
+}
+
+export async function listPaymentEvents(limit = 200): Promise<PaymentEvent[]> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT * FROM payment_events ORDER BY created_at DESC LIMIT ?", [limit]
+  );
+  return (rows as RowDataPacket[]).map(rowToPaymentEvent);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Notifications
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function listNotificationsForCreator(
+  creatorId: string,
+  page = 1,
+  pageSize = 30
+): Promise<{ items: Notification[]; total: number; totalPages: number }> {
+  const pool = getPool();
+  const [[countRows], [rows]] = await Promise.all([
+    pool.query<RowDataPacket[]>("SELECT COUNT(*) cnt FROM notifications WHERE creator_id = ? AND is_visible = 1", [creatorId]),
+    pool.query<RowDataPacket[]>(
+      "SELECT * FROM notifications WHERE creator_id = ? AND is_visible = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      [creatorId, pageSize, (page - 1) * pageSize]
+    ),
+  ]);
+  const total = Number(countRows[0]?.cnt ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  return { items: (rows as RowDataPacket[]).map(rowToNotification), total, totalPages };
+}
+
+export async function countUnreadNotificationsForCreator(creatorId: string): Promise<number> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT COUNT(*) cnt FROM notifications WHERE creator_id = ? AND is_visible = 1 AND is_read = 0", [creatorId]
+  );
+  return Number(rows[0]?.cnt ?? 0);
+}
+
+export async function softDeleteNotificationRecord(id: string, creatorId: string) {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM notifications WHERE id = ? AND creator_id = ?", [id, creatorId]);
+  if (rows.length === 0) throw new Error("Notificación no encontrada.");
+  await pool.query("UPDATE notifications SET is_visible = 0, updated_at = ? WHERE id = ?", [toMySQL(now()), id]);
+  const [updated] = await pool.query<RowDataPacket[]>("SELECT * FROM notifications WHERE id = ?", [id]);
+  return rowToNotification(updated[0]);
+}
+
+export async function markNotificationsReadForCreator(creatorId: string) {
+  const pool = getPool();
+  const [result] = await pool.query(
+    "UPDATE notifications SET is_read = 1, updated_at = ? WHERE creator_id = ? AND is_visible = 1 AND is_read = 0",
+    [toMySQL(now()), creatorId]
+  );
+  return (result as { affectedRows: number }).affectedRows;
 }
 
 export async function createNotificationRecord(input: {
@@ -1430,21 +1232,15 @@ export async function createNotificationRecord(input: {
   photoUrl?: string | null;
   imageUrl?: string | null;
 }) {
-  return mutateDb((db) => {
-    const timestamp = now();
-    const notification: Notification = {
-      id: crypto.randomUUID(),
-      creatorId: input.creatorId,
-      title: input.title,
-      body: input.body || null,
-      photoUrl: input.photoUrl || null,
-      imageUrl: input.imageUrl || null,
-      isRead: false,
-      isVisible: true,
-      createdAt: timestamp,
-      updatedAt: timestamp
-    };
-    db.notifications.push(notification);
-    return notification;
-  });
+  const pool = getPool();
+  const timestamp = now();
+  const id = crypto.randomUUID();
+  await pool.query(
+    `INSERT INTO notifications (id, creator_id, title, body, photo_url, image_url, is_read, is_visible, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?, ?)`,
+    [id, input.creatorId, input.title, input.body ?? null, input.photoUrl ?? null, input.imageUrl ?? null,
+     toMySQL(timestamp), toMySQL(timestamp)]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM notifications WHERE id = ?", [id]);
+  return rowToNotification(rows[0]);
 }

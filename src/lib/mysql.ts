@@ -1,8 +1,33 @@
 import mysql from "mysql2/promise";
 
 // dotenv escapes certain chars (e.g. % → \%) — strip those escape backslashes
-function unescapeEnv(value: string | undefined): string | undefined {
+export function unescapeEnv(value: string | undefined): string | undefined {
   return value?.replace(/\\(.)/g, "$1");
+}
+
+function poolConfig() {
+  return {
+    host:     process.env.DB_HOST     || "localhost",
+    port:     parseInt(process.env.DB_PORT || "3306", 10),
+    database: process.env.DB_DATABASE,
+    user:     process.env.DB_USERNAME,
+    password: unescapeEnv(process.env.DB_PASSWORD),
+    waitForConnections: true,
+    connectionLimit: 5,
+    connectTimeout: 10000,
+  };
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _mysqlPool: mysql.Pool | undefined;
+}
+
+export function getPool(): mysql.Pool {
+  if (!global._mysqlPool) {
+    global._mysqlPool = mysql.createPool(poolConfig());
+  }
+  return global._mysqlPool;
 }
 
 const BASE_CONFIG = {
