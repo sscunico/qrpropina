@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, ImageDown, QrCode, Trash2 } from "lucide-react";
+import { Check, Copy, ExternalLink, ImageDown, QrCode, Trash2 } from "lucide-react";
 import QRCode from "qrcode";
 import type { CreatorQrCode } from "@/lib/db";
 import { deleteAdminQr } from "@/app/admin/actions";
@@ -131,6 +131,9 @@ export function AdminQrGrid({ rows }: { rows: Row[] }) {
                 </td>
                 <td>
                   <div className="table-actions">
+                    <a className="icon-button" href={row.url} rel="noopener noreferrer" target="_blank" title="Abrir en nueva pestaña">
+                      <ExternalLink size={15} />
+                    </a>
                     <CopyLinkButton url={row.url} />
                     <CopyImageButton url={row.url} />
                     <DeleteButton disabled={isDeleting} id={row.id} onDelete={handleDelete} />

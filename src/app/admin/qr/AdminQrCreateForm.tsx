@@ -25,7 +25,7 @@ function SubmitButton() {
 }
 
 export function AdminQrCreateForm() {
-  const [autoInstallable, setAutoInstallable] = useState(false);
+  const [autoInstallable, setAutoInstallable] = useState(true);
 
   return (
     <form action={createAdminQr} className="form">
