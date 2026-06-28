@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
-import { QrCode, Trash2, Zap } from "lucide-react"; // Zap usado en pill autoinstalable
 import { getAdminSession } from "@/lib/auth";
 import { listAdminQrCodes } from "@/lib/db";
 import { appUrl } from "@/lib/env";
-import { deleteAdminQr } from "@/app/admin/actions";
 import { AdminQrCreateForm } from "./AdminQrCreateForm";
+import { AdminQrGrid } from "./AdminQrGrid";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +15,11 @@ export default async function AdminQrPage() {
 
   const qrCodes = await listAdminQrCodes();
   const base = appUrl();
+
+  const rows = qrCodes.map((qr) => ({
+    ...qr,
+    url: `${base}/q/${qr.qrId}${qr.isAutoInstallable ? "?AI=True" : ""}`,
+  }));
 
   return (
     <main className="page">
@@ -31,7 +35,7 @@ export default async function AdminQrPage() {
         <div className="section-row compact-row">
           <div>
             <h2>Nuevo QR</h2>
-            <p className="muted">El ID se usa como identificador único del código.</p>
+            <p className="muted">El ID se usa como identificador único del código. Dejalo vacío para auto-generar.</p>
           </div>
         </div>
         <AdminQrCreateForm />
@@ -41,49 +45,14 @@ export default async function AdminQrPage() {
         <div className="section-row compact-row">
           <div>
             <h2>QR creados</h2>
-            <p className="muted">{qrCodes.length === 0 ? "No hay QR todavía." : `${qrCodes.length} código${qrCodes.length !== 1 ? "s" : ""}`}</p>
+            <p className="muted">
+              {rows.length === 0
+                ? "No hay QR todavía."
+                : `${rows.length} código${rows.length !== 1 ? "s" : ""}`}
+            </p>
           </div>
         </div>
-
-        {qrCodes.length === 0 ? (
-          <p className="muted">Todavía no hay QR generados. Creá el primero arriba.</p>
-        ) : (
-          <div className="qr-list">
-            {qrCodes.map((qr) => {
-              const qrUrl = `${base}/q/${qr.qrId}${qr.isAutoInstallable ? "?AI=True" : ""}`;
-              const deleteAction = deleteAdminQr.bind(null, qr.id);
-              return (
-                <div className="qr-item" key={qr.id}>
-                  <div className="qr-item-header">
-                    <div className="qr-item-title">
-                      <h3 className="section-title-with-icon">
-                        <QrCode size={16} />
-                        {qr.qrId}
-                      </h3>
-                      <div className="qr-url-row">
-                        <code>{qrUrl}</code>
-                      </div>
-                    </div>
-                    {qr.isAutoInstallable && (
-                      <span className="pill ok" style={{ flexShrink: 0 }}>
-                        <Zap size={12} />
-                        Autoinstalable
-                      </span>
-                    )}
-                  </div>
-                  <div className="qr-item-footer">
-                    <form action={deleteAction}>
-                      <button className="button danger" type="submit">
-                        <Trash2 size={16} />
-                        Eliminar
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <AdminQrGrid rows={rows} />
       </section>
     </main>
   );

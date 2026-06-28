@@ -4606,3 +4606,13 @@ tr:has(details[open]) + .log-payload-row {
   animation: spin 600ms linear infinite;
   flex-shrink: 0;
 }
+
+.btn-spinner--light {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+}
+
+.btn-spinner--muted {
+  border-color: var(--line);
+  border-top-color: var(--accent);
+}
