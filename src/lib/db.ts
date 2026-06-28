@@ -44,8 +44,9 @@ export type Creator = {
 
 export type CreatorQrCode = {
   id: string;
-  creatorId: string;
+  creatorId: string | null;
   qrId: string;
+  isAutoInstallable: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -279,8 +280,9 @@ function rowToUser(r: RowDataPacket): User {
 function rowToQrCode(r: RowDataPacket): CreatorQrCode {
   return {
     id: r.id,
-    creatorId: r.creator_id,
+    creatorId: r.creator_id ?? null,
     qrId: r.qr_id,
+    isAutoInstallable: Boolean(r.is_auto_installable),
     createdAt: fromMySQL(r.created_at) ?? now(),
     updatedAt: fromMySQL(r.updated_at) ?? now(),
   };
@@ -858,6 +860,39 @@ export async function checkQrIdAvailability(input: string, exceptRecordId?: stri
       message: error instanceof Error ? error.message : "ID inválido.",
     };
   }
+}
+
+export async function createAdminQrRecord(input: { qrId: string; isAutoInstallable: boolean }): Promise<CreatorQrCode> {
+  const pool = getPool();
+  const qrId = validateQrId(input.qrId);
+  const [qrExists] = await pool.query<RowDataPacket[]>("SELECT id FROM qr_codes WHERE qr_id = ?", [qrId]);
+  if (qrExists.length > 0) throw new Error("Ese ID ya existe.");
+
+  const timestamp = now();
+  const id = crypto.randomUUID();
+  await pool.query(
+    "INSERT INTO qr_codes (id, creator_id, qr_id, is_auto_installable, created_at, updated_at) VALUES (?, NULL, ?, ?, ?, ?)",
+    [id, qrId, input.isAutoInstallable ? 1 : 0, toMySQL(timestamp), toMySQL(timestamp)]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM qr_codes WHERE id = ?", [id]);
+  return rowToQrCode(rows[0]);
+}
+
+export async function listAdminQrCodes(): Promise<CreatorQrCode[]> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT * FROM qr_codes WHERE creator_id IS NULL ORDER BY created_at DESC"
+  );
+  return (rows as RowDataPacket[]).map(rowToQrCode);
+}
+
+export async function deleteAdminQrCodeRecord(recordId: string): Promise<void> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT id FROM qr_codes WHERE id = ? AND creator_id IS NULL", [recordId]
+  );
+  if (rows.length === 0) throw new Error("QR no encontrado.");
+  await pool.query("DELETE FROM qr_codes WHERE id = ?", [recordId]);
 }
 
 export async function createQrCodeRecord(input: { creatorId: string; qrId: string }) {

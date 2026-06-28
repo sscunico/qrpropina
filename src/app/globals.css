@@ -877,6 +877,7 @@ body.drawer-open {
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 24px;
+  flex-wrap: wrap;
 }
 
 .hero-row--split {
@@ -3400,6 +3401,30 @@ tr:has(details[open]) + .log-payload-row {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.admin-qr-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-qr-switch-label {
+  cursor: pointer;
+}
+
+.admin-qr-ai-hint {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.admin-qr-ai-hint code {
+  font-size: 0.84rem;
+  background: var(--lavender);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--accent-strong);
 }
 
 /* Info Tooltip */

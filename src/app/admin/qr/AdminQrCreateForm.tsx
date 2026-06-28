@@ -1,0 +1,51 @@
+"use client";
+
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { createAdminQr } from "@/app/admin/actions";
+
+export function AdminQrCreateForm() {
+  const [autoInstallable, setAutoInstallable] = useState(false);
+
+  return (
+    <form action={createAdminQr} className="form">
+      <div className="form-grid">
+        <div className="field">
+          <label htmlFor="qrId">ID del QR</label>
+          <input
+            id="qrId"
+            name="qrId"
+            placeholder="mesa-01, entrada-principal"
+            required
+          />
+        </div>
+      </div>
+
+      <div className="admin-qr-switch-row">
+        <label className={`switch-control admin-switch-form${autoInstallable ? " checked" : ""}`}>
+          <input
+            checked={autoInstallable}
+            className="sr-only"
+            name="autoInstallable"
+            onChange={(e) => setAutoInstallable(e.target.checked)}
+            type="checkbox"
+          />
+          <span className="switch-track"><span className="switch-thumb" /></span>
+          <span>QR autoinstalable</span>
+        </label>
+        {autoInstallable && (
+          <p className="muted admin-qr-ai-hint">
+            La URL del QR incluirá <code>?AI=True</code>
+          </p>
+        )}
+      </div>
+
+      <div>
+        <button className="button primary" type="submit">
+          <Plus size={18} />
+          Crear QR
+        </button>
+      </div>
+    </form>
+  );
+}

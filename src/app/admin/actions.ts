@@ -7,9 +7,11 @@ import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth";
 import {
   ADMIN_NOTIFICATIONS_ID,
+  createAdminQrRecord,
   createCreatorRecord,
   createNotificationRecord,
   createQrCodeRecord,
+  deleteAdminQrCodeRecord,
   deleteCreatorRecord,
   deleteQrCodeRecord,
   disconnectCreatorMercadoPagoRecord,
@@ -342,6 +344,50 @@ export async function updateCreatorThankYou(creatorId: string, formData: FormDat
 
 export async function markOnboardingCompleted(creatorId: string) {
   await setCreatorOnboardingCompletedRecord(creatorId);
+}
+
+export async function createAdminQr(formData: FormData) {
+  await requireAdmin();
+
+  const isAutoInstallable = formData.get("autoInstallable") === "on";
+
+  let qrId: string;
+  try {
+    const parsed = qrSchema.parse(Object.fromEntries(formData));
+    qrId = parsed.qrId;
+    await createAdminQrRecord({ qrId, isAutoInstallable });
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "No se pudo crear el QR.");
+    return;
+  }
+
+  try {
+    const baseUrl = `${appUrl()}/q/${qrId}`;
+    const qrUrl = isAutoInstallable ? `${baseUrl}?AI=True` : baseUrl;
+    const imageUrl = await qrDataUrl(qrUrl);
+    await createNotificationRecord({
+      creatorId: ADMIN_NOTIFICATIONS_ID,
+      title: `Nuevo QR${isAutoInstallable ? " autoinstalable" : ""} creado`,
+      body: qrId,
+      imageUrl,
+    });
+  } catch {
+    // notificación no crítica
+  }
+
+  revalidatePath("/admin/qr");
+}
+
+export async function deleteAdminQr(recordId: string) {
+  await requireAdmin();
+
+  try {
+    await deleteAdminQrCodeRecord(recordId);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "No se pudo eliminar el QR.");
+  }
+
+  revalidatePath("/admin/qr");
 }
 
 export async function updateCreatorMercadoPagoAlias(creatorId: string, formData: FormData) {

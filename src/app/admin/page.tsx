@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Bell, Database, Settings, Users } from "lucide-react";
+import { Bell, Database, QrCode, Settings, Users } from "lucide-react";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { getAdminSession } from "@/lib/auth";
 import { aggregateTips, listCreatorsWithRecentTips } from "@/lib/db";
@@ -63,6 +63,11 @@ export default async function AdminPage() {
           <Settings size={24} />
           <strong>Ajustes</strong>
           <span>Configuración operativa y Mercado Pago.</span>
+        </Link>
+        <Link className="dashboard-card" href="/admin/qr">
+          <QrCode size={24} />
+          <strong>QR</strong>
+          <span>Generá QR sin límite con soporte autoinstalable.</span>
         </Link>
         <Link className="dashboard-card" href="/admin/notificaciones">
           <Bell size={24} />
