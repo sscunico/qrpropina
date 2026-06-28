@@ -200,10 +200,13 @@ export default async function AdminSettingsPage() {
             </span>
           </div>
           <div className={`message ${dbStatus.ok ? "success" : "error"} settings-message`}>
-            {dbStatus.ok
-              ? `✓ ${dbStatus.message}`
-              : `✗ ${dbStatus.message}`}
+            {dbStatus.ok ? `✓ ${dbStatus.message}` : `✗ ${dbStatus.message}`}
           </div>
+          {dbStatus.debug ? (
+            <div className="message settings-message" style={{ fontSize: "0.78rem", fontFamily: "monospace", background: "#1e1e2e", color: "#cdd6f4", marginTop: 8 }}>
+              <strong style={{ color: "#89b4fa" }}>Variables leídas:</strong><br />{dbStatus.debug}
+            </div>
+          ) : null}
           {dbStatus.results ? (
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
               {dbStatus.results.map((r) => (

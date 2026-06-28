@@ -25,16 +25,19 @@ async function tryHost(host: string): Promise<{ ok: boolean; message: string; ho
 export async function testMySQLConnection(): Promise<{
   ok: boolean;
   message: string;
+  debug?: string;
   results?: { host: string; ok: boolean; message: string }[];
 }> {
+  const debug = `DB_HOST="${process.env.DB_HOST}" DB_PORT="${process.env.DB_PORT}" DB_DATABASE="${process.env.DB_DATABASE}" DB_USERNAME="${process.env.DB_USERNAME}" DB_PASSWORD="${process.env.DB_PASSWORD ? "***" + process.env.DB_PASSWORD.slice(-3) : "(vacío)"}"`;
+
   if (!BASE_CONFIG.database || !BASE_CONFIG.user) {
-    return { ok: false, message: "Variables de entorno MySQL no configuradas." };
+    return { ok: false, message: "Variables de entorno MySQL no configuradas.", debug };
   }
 
   const hosts = [
     process.env.DB_HOST || "localhost",
     "127.0.0.1",
-  ].filter((h, i, arr) => h && arr.indexOf(h) === i);
+  ].filter((h, i, arr) => Boolean(h) && arr.indexOf(h) === i) as string[];
 
   const results = await Promise.all(hosts.map(tryHost));
   const success = results.find((r) => r.ok);
@@ -43,6 +46,7 @@ export async function testMySQLConnection(): Promise<{
     return {
       ok: true,
       message: `Conectado via "${success.host}" — base de datos: ${BASE_CONFIG.database}`,
+      debug,
       results,
     };
   }
@@ -50,6 +54,7 @@ export async function testMySQLConnection(): Promise<{
   return {
     ok: false,
     message: results.map((r) => `[${r.host}]: ${r.message}`).join(" | "),
+    debug,
     results,
   };
 }
