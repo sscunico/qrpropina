@@ -4571,15 +4571,26 @@ tr:has(details[open]) + .log-payload-row {
   max-width: 340px;
 }
 
-.qr-notfound-actions {
-  margin-top: 4px;
+.qr-notfound-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  width: 100%;
+  justify-content: center;
 }
 
-.qr-notfound-hint {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--muted);
-  border-top: 1px solid var(--line);
-  padding-top: 16px;
-  width: 100%;
+.qr-notfound-logo {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.qr-notfound-brand-name {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--accent-strong);
+  letter-spacing: -0.01em;
 }

@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Home, QrCode } from "lucide-react";
+import { QrCode } from "lucide-react";
+import { LogoMark } from "@/components/LogoMark";
 
 export default function QrNotFound() {
   return (
@@ -16,16 +16,10 @@ export default function QrNotFound() {
           Pedile al local que te muestre el QR correcto.
         </p>
 
-        <div className="qr-notfound-actions">
-          <Link className="button primary" href="/">
-            <Home size={18} />
-            Ir al inicio
-          </Link>
+        <div className="qr-notfound-brand">
+          <LogoMark className="qr-notfound-logo" />
+          <span className="qr-notfound-brand-name">QRpropinas.com</span>
         </div>
-
-        <p className="qr-notfound-hint">
-          Si sos el administrador, revisá que el QR esté registrado en el panel.
-        </p>
       </div>
     </main>
   );
