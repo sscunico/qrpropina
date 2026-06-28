@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { CheckCircle2, Plus, Save, XCircle } from "lucide-react";
 
 type Props = {
@@ -24,6 +25,24 @@ type CheckResult = {
 
 const qrIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+function SubmitButton({ submitStyle, submitLabel, canSubmit }: { submitStyle: string; submitLabel: string; canSubmit: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button className={`button ${submitStyle}`} disabled={!canSubmit || pending} type="submit">
+      {pending ? (
+        <>
+          <span className="btn-spinner" />
+          Creando…
+        </>
+      ) : submitStyle === "primary" ? (
+        <><Plus size={18} />{submitLabel}</>
+      ) : (
+        <><Save size={17} />{submitLabel}</>
+      )}
+    </button>
+  );
+}
+
 export function QrIdForm({
   cancelHref,
   cancelLabel = "Cancelar",
@@ -42,7 +61,7 @@ export function QrIdForm({
   const [message, setMessage] = useState(defaultValue ? "ID disponible." : "");
 
   const normalizedValue = useMemo(() => value.trim().toLowerCase(), [value]);
-  const canSubmit = status === "valid" && normalizedValue.length > 0;
+  const canSubmit = status === "valid" || normalizedValue === "";
 
   useEffect(() => {
     let cancelled = false;
@@ -119,8 +138,7 @@ export function QrIdForm({
             id={inputId}
             name="qrId"
             pattern="[a-z0-9]+(-[a-z0-9]+)*"
-            placeholder="Ingresa un nuevo QR"
-            required
+            placeholder="Vacío = auto-generar (YYMMDDHHMMSS)"
             value={value}
             onChange={handleChange}
           />
@@ -141,10 +159,7 @@ export function QrIdForm({
         ) : null}
       </div>
       <div className="qr-form-actions">
-        <button className={`button ${submitStyle}`} disabled={!canSubmit} type="submit">
-          {submitStyle === "primary" ? <Plus size={18} /> : <Save size={17} />}
-          {submitLabel}
-        </button>
+        <SubmitButton canSubmit={canSubmit} submitLabel={submitLabel} submitStyle={submitStyle} />
         {cancelHref ? (
           <Link className="button secondary" href={cancelHref}>
             {cancelLabel}

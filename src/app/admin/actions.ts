@@ -239,15 +239,19 @@ export async function claimCreatorQr(creatorId: string, qrId: string) {
 export async function createCreatorQr(creatorId: string, formData: FormData) {
   await requireQrAccess(creatorId);
 
-  let qrId: string;
+  const rawQrId = (formData.get("qrId") as string | null)?.trim() || undefined;
+
+  let qrRecord: Awaited<ReturnType<typeof createQrCodeRecord>>;
   try {
-    const parsed = qrSchema.parse(Object.fromEntries(formData));
-    qrId = parsed.qrId;
-    await createQrCodeRecord({ creatorId, qrId });
+    if (rawQrId) {
+      qrSchema.parse({ qrId: rawQrId });
+    }
+    qrRecord = await createQrCodeRecord({ creatorId, qrId: rawQrId });
   } catch (error) {
     console.error(error instanceof Error ? error.message : "No se pudo crear el QR.");
     return;
   }
+  const qrId = qrRecord.qrId;
 
   try {
     const creator = await getCreatorWithTips(creatorId, 0);
@@ -350,16 +354,19 @@ export async function createAdminQr(formData: FormData) {
   await requireAdmin();
 
   const isAutoInstallable = formData.get("autoInstallable") === "on";
+  const rawQrId = (formData.get("qrId") as string | null)?.trim() || undefined;
 
-  let qrId: string;
+  let qrRecord: Awaited<ReturnType<typeof createAdminQrRecord>>;
   try {
-    const parsed = qrSchema.parse(Object.fromEntries(formData));
-    qrId = parsed.qrId;
-    await createAdminQrRecord({ qrId, isAutoInstallable });
+    if (rawQrId) {
+      qrSchema.parse({ qrId: rawQrId });
+    }
+    qrRecord = await createAdminQrRecord({ qrId: rawQrId, isAutoInstallable });
   } catch (error) {
     console.error(error instanceof Error ? error.message : "No se pudo crear el QR.");
     return;
   }
+  const qrId = qrRecord.qrId;
 
   try {
     const baseUrl = `${appUrl()}/q/${qrId}`;

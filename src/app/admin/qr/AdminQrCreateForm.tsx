@@ -1,8 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import { Plus } from "lucide-react";
 import { createAdminQr } from "@/app/admin/actions";
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button className="button primary" disabled={pending} type="submit">
+      {pending ? (
+        <>
+          <span className="btn-spinner" />
+          Creando…
+        </>
+      ) : (
+        <>
+          <Plus size={18} />
+          Crear QR
+        </>
+      )}
+    </button>
+  );
+}
 
 export function AdminQrCreateForm() {
   const [autoInstallable, setAutoInstallable] = useState(false);
@@ -15,8 +35,7 @@ export function AdminQrCreateForm() {
           <input
             id="qrId"
             name="qrId"
-            placeholder="mesa-01, entrada-principal"
-            required
+            placeholder="Dejar vacío para auto-generar (YYMMDDHHMMSS)"
           />
         </div>
       </div>
@@ -41,10 +60,7 @@ export function AdminQrCreateForm() {
       </div>
 
       <div>
-        <button className="button primary" type="submit">
-          <Plus size={18} />
-          Crear QR
-        </button>
+        <SubmitButton />
       </div>
     </form>
   );

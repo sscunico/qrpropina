@@ -1,4 +1,4 @@
-import type { PoolConnection, RowDataPacket } from "mysql2/promise";
+import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import { getPool } from "./mysql";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -862,11 +862,30 @@ export async function checkQrIdAvailability(input: string, exceptRecordId?: stri
   }
 }
 
-export async function createAdminQrRecord(input: { qrId: string; isAutoInstallable: boolean }): Promise<CreatorQrCode> {
+function timestampQrId(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    pad(d.getFullYear() % 100) +
+    pad(d.getMonth() + 1) +
+    pad(d.getDate()) +
+    pad(d.getHours()) +
+    pad(d.getMinutes()) +
+    pad(d.getSeconds())
+  );
+}
+
+async function resolveUniqueQrId(pool: Pool, candidate: string): Promise<string> {
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT id FROM qr_codes WHERE qr_id = ?", [candidate]);
+  if (rows.length === 0) return candidate;
+  const suffix = String(Math.floor(Math.random() * 900) + 100);
+  return candidate + suffix;
+}
+
+export async function createAdminQrRecord(input: { qrId?: string; isAutoInstallable: boolean }): Promise<CreatorQrCode> {
   const pool = getPool();
-  const qrId = validateQrId(input.qrId);
-  const [qrExists] = await pool.query<RowDataPacket[]>("SELECT id FROM qr_codes WHERE qr_id = ?", [qrId]);
-  if (qrExists.length > 0) throw new Error("Ese ID ya existe.");
+  const base = input.qrId ? validateQrId(input.qrId) : timestampQrId();
+  const qrId = await resolveUniqueQrId(pool, base);
 
   const timestamp = now();
   const id = crypto.randomUUID();
@@ -895,7 +914,7 @@ export async function deleteAdminQrCodeRecord(recordId: string): Promise<void> {
   await pool.query("DELETE FROM qr_codes WHERE id = ?", [recordId]);
 }
 
-export async function createQrCodeRecord(input: { creatorId: string; qrId: string }) {
+export async function createQrCodeRecord(input: { creatorId: string; qrId?: string }) {
   const pool = getPool();
   const [creatorExists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [input.creatorId]);
   if (creatorExists.length === 0) throw new Error("Creador no encontrado.");
@@ -903,9 +922,8 @@ export async function createQrCodeRecord(input: { creatorId: string; qrId: strin
   const [countRows] = await pool.query<RowDataPacket[]>("SELECT COUNT(*) cnt FROM qr_codes WHERE creator_id = ?", [input.creatorId]);
   if (Number(countRows[0].cnt) >= 30) throw new Error("Cada creador puede tener como máximo 30 QR.");
 
-  const qrId = validateQrId(input.qrId);
-  const [qrExists] = await pool.query<RowDataPacket[]>("SELECT id FROM qr_codes WHERE qr_id = ?", [qrId]);
-  if (qrExists.length > 0) throw new Error("Ese ID ya existe.");
+  const base = input.qrId ? validateQrId(input.qrId) : timestampQrId();
+  const qrId = await resolveUniqueQrId(pool, base);
 
   const timestamp = now();
   const id = crypto.randomUUID();

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { QrCode, Trash2, Zap } from "lucide-react";
+import { QrCode, Trash2, Zap } from "lucide-react"; // Zap usado en pill autoinstalable
 import { getAdminSession } from "@/lib/auth";
 import { listAdminQrCodes } from "@/lib/db";
 import { appUrl } from "@/lib/env";
@@ -57,7 +57,7 @@ export default async function AdminQrPage() {
                   <div className="qr-item-header">
                     <div className="qr-item-title">
                       <h3 className="section-title-with-icon">
-                        {qr.isAutoInstallable ? <Zap size={16} color="var(--accent)" /> : <QrCode size={16} />}
+                        <QrCode size={16} />
                         {qr.qrId}
                       </h3>
                       <div className="qr-url-row">
