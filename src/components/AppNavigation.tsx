@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Database,
@@ -84,6 +84,34 @@ function isTipRoute(pathname: string) {
 export function AppNavigation({ appName, session, showMercadoPagoIntegration = true, unreadCount = 0 }: Props) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
+  const drag = useRef({ active: false, moved: false, startY: 0, scrollTop: 0 });
+
+  function handleDrawerPointerDown(e: React.PointerEvent<HTMLElement>) {
+    if (e.button !== 0) return;
+    const el = drawerRef.current;
+    if (!el || el.scrollHeight <= el.clientHeight) return;
+    drag.current = { active: true, moved: false, startY: e.clientY, scrollTop: el.scrollTop };
+  }
+
+  function handleDrawerPointerMove(e: React.PointerEvent<HTMLElement>) {
+    const el = drawerRef.current;
+    if (!el || !drag.current.active) return;
+    const deltaY = e.clientY - drag.current.startY;
+    if (Math.abs(deltaY) > 4) drag.current.moved = true;
+    el.scrollTop = drag.current.scrollTop - deltaY;
+  }
+
+  function handleDrawerPointerUp() {
+    drag.current.active = false;
+  }
+
+  function handleDrawerClickCapture(e: React.MouseEvent<HTMLElement>) {
+    if (!drag.current.moved) return;
+    e.preventDefault();
+    e.stopPropagation();
+    drag.current.moved = false;
+  }
   const [currentSection, setCurrentSection] = useState("qrs");
   const hideNavigation = isTipRoute(pathname);
   const showDot = unreadCount > 0 && pathname !== "/admin/notificaciones";
@@ -271,7 +299,19 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
 
       {session ? <div className={isOpen ? "drawer-backdrop show" : "drawer-backdrop"} onClick={() => setIsOpen(false)} /> : null}
       {session ? (
-        <aside aria-label="Menu lateral" aria-modal={isOpen} className={isOpen ? "side-drawer show" : "side-drawer"} role="dialog">
+        <aside
+          aria-label="Menu lateral"
+          aria-modal={isOpen}
+          className={isOpen ? "side-drawer show" : "side-drawer"}
+          onClickCapture={handleDrawerClickCapture}
+          onPointerCancel={handleDrawerPointerUp}
+          onPointerDown={handleDrawerPointerDown}
+          onPointerLeave={handleDrawerPointerUp}
+          onPointerMove={handleDrawerPointerMove}
+          onPointerUp={handleDrawerPointerUp}
+          ref={drawerRef}
+          role="dialog"
+        >
           <div className="drawer-head drawer-head-plain">
             <button className="icon-button ghost" onClick={() => setIsOpen(false)} title="Cerrar menú" type="button"><X size={22} /></button>
           </div>
