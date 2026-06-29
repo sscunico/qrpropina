@@ -974,6 +974,23 @@ export async function getQrCodeWithCreatorByQrId(qrIdInput: string): Promise<QrC
   return { ...qrCode, creator: rowToCreator(creatorRows[0]) };
 }
 
+export async function getQrCodeByQrId(qrIdInput: string): Promise<CreatorQrCode | null> {
+  const qrId = normalizeQrId(qrIdInput);
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM qr_codes WHERE qr_id = ?", [qrId]);
+  if (rows.length === 0) return null;
+  return rowToQrCode(rows[0]);
+}
+
+export async function assignQrToCreator(qrIdInput: string, creatorId: string): Promise<void> {
+  const qrId = normalizeQrId(qrIdInput);
+  const pool = getPool();
+  await pool.query(
+    "UPDATE qr_codes SET creator_id = ?, updated_at = ? WHERE qr_id = ? AND creator_id IS NULL",
+    [creatorId, toMySQL(now()), qrId]
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Users
 // ═══════════════════════════════════════════════════════════════════════════

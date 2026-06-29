@@ -1,16 +1,29 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CreatorAvatar } from "@/app/t/[slug]/CreatorAvatar";
 import { TipForm } from "@/app/t/[slug]/TipForm";
-import { getAppSettings, getQrCodeWithCreatorByQrId } from "@/lib/db";
+import { getAppSettings, getQrCodeByQrId, getQrCodeWithCreatorByQrId } from "@/lib/db";
 
 type Props = {
   params: Promise<{ qrId: string }>;
+  searchParams: Promise<{ AI?: string }>;
 };
 
 export const dynamic = "force-dynamic";
 
-export default async function QrTipPage({ params }: Props) {
+export default async function QrTipPage({ params, searchParams }: Props) {
   const { qrId } = await params;
+  const sp = await searchParams;
+
+  if (sp.AI === "True") {
+    const qrCode = await getQrCodeByQrId(qrId);
+    if (!qrCode) notFound();
+
+    if (qrCode.isAutoInstallable && qrCode.creatorId === null) {
+      redirect(`/api/qr/install?qrId=${encodeURIComponent(qrId)}`);
+    }
+    // QR ya asignado o no autoinstalable → continuar con flujo normal
+  }
+
   const [qrCode, settings] = await Promise.all([getQrCodeWithCreatorByQrId(qrId), getAppSettings()]);
 
   if (!qrCode || !qrCode.creator.isActive) {

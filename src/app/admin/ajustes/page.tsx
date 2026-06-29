@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { BadgePercent, Database, Palette, RotateCcw, ServerCog, Wallet } from "lucide-react";
-import { testMySQLConnection } from "@/lib/mysql";
+import { BadgePercent, Palette, RotateCcw, ServerCog, Wallet } from "lucide-react";
 import { resetColorOverrides, saveColorOverrides, setMercadoPagoIntegrationVisibility, setTransferDiscountPercent } from "@/app/admin/actions";
 import { PercentStepper } from "@/components/PercentStepper";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -70,7 +69,7 @@ export default async function AdminSettingsPage() {
     redirect(session.creatorId ? `/admin/creadores/${session.creatorId}` : "/login");
   }
 
-  const [settings, dbStatus] = await Promise.all([getAppSettings(), testMySQLConnection()]);
+  const settings = await getAppSettings();
   const showMercadoPagoIntegration = settings.showMercadoPagoIntegration;
   const missingOAuthVars = missingMercadoPagoOAuthVars();
   const mercadoPagoRedirectUrl = `${appUrl()}/api/mercadopago/oauth/callback`;
@@ -187,37 +186,6 @@ export default async function AdminSettingsPage() {
             </div>
           </form>
         </section>
-        <section className="panel settings-panel">
-          <div className="section-row compact-row">
-            <div>
-              <p className="kicker">Base de datos</p>
-              <h2>MySQL remoto <InfoTooltip text="Prueba de conexión a la base de datos MySQL configurada en las variables de entorno." /></h2>
-              <p className="muted">{dbStatus.message}</p>
-            </div>
-            <span className={dbStatus.ok ? "pill ok" : "pill warn"}>
-              <Database size={14} />
-              {dbStatus.ok ? "Conectado" : "Sin conexión"}
-            </span>
-          </div>
-          <div className={`message ${dbStatus.ok ? "success" : "error"} settings-message`}>
-            {dbStatus.ok ? `✓ ${dbStatus.message}` : `✗ ${dbStatus.message}`}
-          </div>
-          {dbStatus.debug ? (
-            <div className="message settings-message" style={{ fontSize: "0.78rem", fontFamily: "monospace", background: "#1e1e2e", color: "#cdd6f4", marginTop: 8 }}>
-              <strong style={{ color: "#89b4fa" }}>Variables leídas:</strong><br />{dbStatus.debug}
-            </div>
-          ) : null}
-          {dbStatus.results ? (
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-              {dbStatus.results.map((r) => (
-                <div key={r.host} className={`message ${r.ok ? "success" : "error"} settings-message`} style={{ fontSize: "0.82rem", padding: "6px 12px" }}>
-                  <strong>{r.host}</strong>: {r.ok ? "✓ OK" : `✗ ${r.message}`}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </section>
-
         <section className="panel settings-panel">
           <div className="section-row compact-row">
             <div>

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { signInUser } from "@/lib/auth";
-import { ADMIN_NOTIFICATIONS_ID, createNotificationRecord, upsertGoogleUser } from "@/lib/db";
+import { ADMIN_NOTIFICATIONS_ID, assignQrToCreator, createNotificationRecord, upsertGoogleUser } from "@/lib/db";
 import { appUrl } from "@/lib/env";
 import {
   GOOGLE_OAUTH_STATE_COOKIE,
@@ -60,6 +60,15 @@ export async function GET(request: Request) {
       name: profile.name,
       picture: profile.picture
     });
+
+    const pendingQrId = cookieStore.get("qr_pending_install")?.value;
+    if (pendingQrId && user.creatorId) {
+      try {
+        await assignQrToCreator(pendingQrId, user.creatorId);
+      } catch { /* silencioso */ }
+      cookieStore.delete("qr_pending_install");
+    }
+
     return appRedirect(parsedState.next);
   } catch {
     return appRedirect("/login?error=google_failed");

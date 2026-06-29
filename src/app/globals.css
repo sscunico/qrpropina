@@ -3074,6 +3074,46 @@ h3 {
   overflow-x: auto;
 }
 
+.qr-grid-wrap {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.qr-grid-wrap .table-responsive {
+  overflow-x: auto;
+}
+
+.qr-grid-wrap .table {
+  min-width: 620px;
+  table-layout: fixed;
+}
+
+.qr-grid-wrap .table th:nth-child(1),
+.qr-grid-wrap .table td:nth-child(1) { width: 192px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.qr-grid-wrap .table th:nth-child(3),
+.qr-grid-wrap .table td:nth-child(3) { width: 210px; }
+
+.qr-grid-wrap .table td:nth-child(2) code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qr-grid-wrap .table-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.qr-grid-wrap .table-actions,
+.qr-grid-wrap .table-actions .icon-button {
+  width: auto;
+}
+
+
 .logs-table-wrapper {
   width: 100%;
   overflow-x: auto;
