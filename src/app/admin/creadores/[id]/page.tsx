@@ -273,67 +273,29 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
               <div>
                 <h2>
                   {isAdmin ? (
-                    "Crear / editar QR"
+                    "QR del creador"
                   ) : (
                     <span className="section-title-with-icon">
                       <QrCode aria-hidden="true" size={22} />
-                      <span>Escanear QR</span>
+                      <span>Mis QR</span>
                     </span>
                   )}
                   {" "}
-                  <InfoTooltip text="Cada QR tiene un ID único que genera una URL del tipo /q/id. Los clientes escanean ese QR para hacer la propina." />
+                  <InfoTooltip text="Cada QR tiene un ID único que determina su URL pública (/q/tu-id). Imprimís esa imagen y la colocás donde trabajes — tus clientes la escanean para enviarte la propina directamente a tu Mercado Pago." />
                 </h2>
                 <p className="muted">
                   {isAdmin
-                    ? (selectedQr ? "Edita el ID de este QR. La URL se actualiza automaticamente." : "Crea un ID unico para generar una URL del tipo /q/id.")
-                    : "Escaneá un QR de nuestra plataforma para registrarlo en tu cuenta."}
+                    ? "Administrá los QR de este creador. Podés crear hasta 3 en total."
+                    : "Tus QR activos. Descargalos, imprimílos y colocalos donde tus clientes puedan escanearlos para pagarte."}
                 </p>
               </div>
-              <span className="pill">{creator.qrCodes.length}/30 QR <InfoTooltip text="Podés tener hasta 30 QR distintos. Útil para tener uno por mesa, zona o canal." /></span>
-            </div>
-
-            {isAdmin ? (
-              <div className="qr-editor" id="qr-editor">
-                {selectedQr || creator.qrCodes.length < 30 ? (
-                  <>
-                    {selectedQr ? (
-                      <div className="message compact">
-                        Editando <strong>{selectedQr.qrId}</strong>
-                      </div>
-                    ) : null}
-                    <QrIdForm
-                      key={selectedQr?.id ?? "create"}
-                      className="form qr-create-form"
-                      defaultValue={selectedQr?.qrId ?? ""}
-                      exceptRecordId={selectedQr?.id}
-                      formAction={selectedQrAction}
-                      inputId="qrEditorId"
-                      submitLabel={selectedQr ? "Guardar cambios" : "Crear QR"}
-                      submitStyle={selectedQr ? "secondary" : "primary"}
-                      cancelHref={selectedQr ? `${qrsHref}#qr-editor` : undefined}
-                    />
-                  </>
-                ) : (
-                  <div className="message">Este creador ya tiene el máximo de 30 QR.</div>
-                )}
-              </div>
-            ) : creator.qrCodes.length < 30 ? (
-              <QrScanner claimAction={claimQrWithId} existingQrIds={creator.qrCodes.map((q) => q.qrId)} />
-            ) : (
-              <div className="message">Ya tenés el máximo de 30 QR registrados.</div>
-            )}
-
-            <div className="section-row qr-grid-heading">
-              <div>
-                <h2>QR registrados</h2>
-                {isAdmin ? <p className="muted">Usa Editar para llevar el QR al formulario superior.</p> : null}
-              </div>
+              <span className="pill">{creator.qrCodes.length}/3 QR <InfoTooltip text="Podés tener hasta 3 QR distintos. Útil para tener uno por mesa, zona o canal." /></span>
             </div>
 
             <div className="qr-list">
               {qrItems.length === 0 ? (
                 <div className="message">
-                  Todavia no hay QR registrados. {isAdmin ? "Crea el primer ID para generar su URL." : "Escaneá un QR para registrarlo."}
+                  Todavía no hay QR registrados. {isAdmin ? "Creá el primer QR usando el formulario de abajo." : "Escaneá un QR impreso de nuestra plataforma para registrarlo en tu cuenta."}
                 </div>
               ) : null}
 
@@ -393,6 +355,57 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                 );
               })}
             </div>
+
+            <div className="section-row qr-grid-heading">
+              <div>
+                <h2>
+                  {isAdmin ? "Crear / editar QR" : (
+                    <span className="section-title-with-icon">
+                      <QrCode aria-hidden="true" size={22} />
+                      <span>Registrar QR</span>
+                    </span>
+                  )}
+                </h2>
+                <p className="muted">
+                  {isAdmin
+                    ? (selectedQr
+                      ? "Editá el ID de este QR. La URL se actualiza automáticamente — si ya tenés el código impreso, vas a necesitar reimprimirlo."
+                      : "Ingresá un ID único para este QR. Se genera una URL del tipo /q/tu-id: esa es la imagen que imprimís y tus clientes escanean para pagarte la propina.")
+                    : "Escaneá con la cámara un QR impreso de nuestra plataforma para asociarlo a tu cuenta. Una vez registrado podés descargarlo, imprimirlo y tus clientes lo usarán para enviarte propinas."}
+                </p>
+              </div>
+            </div>
+
+            {isAdmin ? (
+              <div className="qr-editor" id="qr-editor">
+                {selectedQr || creator.qrCodes.length < 3 ? (
+                  <>
+                    {selectedQr ? (
+                      <div className="message compact">
+                        Editando <strong>{selectedQr.qrId}</strong>
+                      </div>
+                    ) : null}
+                    <QrIdForm
+                      key={selectedQr?.id ?? "create"}
+                      className="form qr-create-form"
+                      defaultValue={selectedQr?.qrId ?? ""}
+                      exceptRecordId={selectedQr?.id}
+                      formAction={selectedQrAction}
+                      inputId="qrEditorId"
+                      submitLabel={selectedQr ? "Guardar cambios" : "Crear QR"}
+                      submitStyle={selectedQr ? "secondary" : "primary"}
+                      cancelHref={selectedQr ? `${qrsHref}#qr-editor` : undefined}
+                    />
+                  </>
+                ) : (
+                  <div className="message">Este creador ya tiene el máximo de 3 QR.</div>
+                )}
+              </div>
+            ) : creator.qrCodes.length < 3 ? (
+              <QrScanner claimAction={claimQrWithId} existingQrIds={creator.qrCodes.map((q) => q.qrId)} />
+            ) : (
+              <div className="message">Ya tenés el máximo de 3 QR registrados.</div>
+            )}
           </section>
         ) : null}
 

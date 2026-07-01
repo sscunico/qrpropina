@@ -920,7 +920,7 @@ export async function createQrCodeRecord(input: { creatorId: string; qrId?: stri
   if (creatorExists.length === 0) throw new Error("Creador no encontrado.");
 
   const [countRows] = await pool.query<RowDataPacket[]>("SELECT COUNT(*) cnt FROM qr_codes WHERE creator_id = ?", [input.creatorId]);
-  if (Number(countRows[0].cnt) >= 30) throw new Error("Cada creador puede tener como máximo 30 QR.");
+  if (Number(countRows[0].cnt) >= 3) throw new Error("Cada creador puede tener como máximo 3 QR.");
 
   const base = input.qrId ? validateQrId(input.qrId) : timestampQrId();
   const qrId = await resolveUniqueQrId(pool, base);
@@ -1052,6 +1052,18 @@ export async function upsertGoogleUser(input: {
         );
         const [cr] = await conn.query<RowDataPacket[]>("SELECT * FROM creators WHERE id = ?", [cid]);
         creator = rowToCreator(cr[0]);
+
+        // Auto-crear primer QR usando el prefijo del email (sin @dominio)
+        const emailPrefix = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "user";
+        const [existingQrRows] = await conn.query<RowDataPacket[]>("SELECT id FROM qr_codes WHERE qr_id = ?", [emailPrefix]);
+        const autoQrId = existingQrRows.length === 0
+          ? emailPrefix
+          : emailPrefix + "-" + String(Math.floor(Math.random() * 900) + 100);
+        const qrRecordId = crypto.randomUUID();
+        await conn.query(
+          "INSERT INTO qr_codes (id, creator_id, qr_id, is_auto_installable, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)",
+          [qrRecordId, creator.id, autoQrId, mysqlTs, mysqlTs]
+        );
       } else {
         await conn.query(
           "UPDATE creators SET owner_user_id=?, photo_url=COALESCE(?, photo_url), updated_at=? WHERE id=?",
