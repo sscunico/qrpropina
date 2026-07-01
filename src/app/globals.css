@@ -1513,6 +1513,28 @@ h3 {
   margin-bottom: 14px;
 }
 
+.compact-row {
+  margin-bottom: 12px;
+}
+
+.mp-instant-tip {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mp-instant-tip ol {
+  margin: 4px 0 4px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mp-instant-tip p {
+  margin: 0;
+}
+
 .storage-row {
   display: grid;
   grid-template-columns: 150px minmax(0, 1fr);
@@ -4227,6 +4249,37 @@ tr:has(details[open]) + .log-payload-row {
 
   .legal-footer-links {
     grid-template-columns: 1fr;
+  }
+
+  /* Ajustes de responsividad — página de ajustes del admin */
+  .panel {
+    padding: 14px;
+  }
+
+  .settings-stack {
+    gap: 10px;
+  }
+
+  .settings-number-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-number-form .button {
+    width: 100%;
+  }
+
+  .settings-color-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-color-actions .button {
+    width: 100%;
+  }
+
+  .color-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 

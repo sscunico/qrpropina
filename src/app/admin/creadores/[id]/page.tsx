@@ -621,7 +621,26 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                 </span>
                 {creator.mpUserId ? <span className="pill">MP user {creator.mpUserId}</span> : null}
               </div>
-            ) : null}
+            ) : (
+              <div className="message mp-instant-tip">
+                <strong>¿Querés cobrar tus propinas al instante?</strong>
+                <p>
+                  Por defecto, Mercado Pago retiene el dinero{" "}
+                  <strong>35 días</strong> antes de acreditarlo en tu cuenta (comisión 1,49% + IVA).
+                  Si preferís recibir cada propina{" "}
+                  <strong>de forma inmediata</strong>, podés cambiarlo directamente en tu cuenta de Mercado Pago:
+                </p>
+                <ol>
+                  <li>Entrá a <strong>mercadopago.com.ar</strong> con tu cuenta.</li>
+                  <li>Ir a <strong>Tu negocio → Configurar mi negocio</strong>.</li>
+                  <li>Buscá la sección <strong>Tasas y plazos</strong> y elegí <strong>Al instante</strong>.</li>
+                </ol>
+                <p className="muted">
+                  Tené en cuenta que la comisión de Mercado Pago cambia según el plazo: 35 días → 1,49% · 18 días → 3,39% · 10 días → 4,39% · Al instante → 6,29% (todos + IVA).
+                  Esta comisión la descuenta MP de tu parte — es independiente de la comisión de la app.
+                </p>
+              </div>
+            )}
           </section>
         ) : null}
 

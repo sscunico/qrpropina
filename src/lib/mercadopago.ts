@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
-import { addPaymentEvent, type Creator, type Tip } from "@/lib/db";
+import { addPaymentEvent, updateCreatorMpTokensRecord, type Creator, type Tip } from "@/lib/db";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import {
   appUrl,
@@ -46,6 +46,7 @@ export type MercadoPagoAccount = {
 };
 
 const OAUTH_TTL_MS = 10 * 60 * 1000;
+const TOKEN_REFRESH_THRESHOLD_MS = 14 * 24 * 60 * 60 * 1000; // renueva si vence en menos de 14 días
 
 export const MERCADOPAGO_OAUTH_COOKIE = "qrpropina_mp_oauth";
 
@@ -97,12 +98,30 @@ export async function createMercadoPagoPreference({
     };
   }
 
-  const accessToken = getCreatorAccessToken(creator);
-  const usingPlatformToken = !sellerIsConnected(creator);
-
-  if (!accessToken) {
+  if (!sellerIsConnected(creator)) {
     throw new Error("El creador debe conectar su cuenta de Mercado Pago antes de recibir propinas reales.");
   }
+
+  let accessToken = decryptSecret(creator.mpAccessToken);
+  if (!accessToken) {
+    throw new Error("No se pudo leer el token de Mercado Pago del creador. Reconectá la cuenta.");
+  }
+
+  // Auto-refresh si el token vence en menos de 14 días
+  if (creator.mpTokenExpiresAt) {
+    const expiresAt = new Date(creator.mpTokenExpiresAt).getTime();
+    if (expiresAt - Date.now() < TOKEN_REFRESH_THRESHOLD_MS) {
+      try {
+        const refreshed = await refreshCreatorOAuthToken(creator.mpRefreshToken);
+        await updateCreatorMpTokensRecord(creator.id, refreshed);
+        accessToken = refreshed.rawAccessToken;
+      } catch {
+        // Si falla el refresh, continúa con el token existente
+      }
+    }
+  }
+
+  const usingPlatformToken = false;
 
   const baseUrl = appUrl();
   const body: PreferenceBody = {
@@ -144,6 +163,9 @@ export async function createMercadoPagoPreference({
   if (tip.platformFeeCents > 0) {
     body.marketplace_fee = centsToPesos(tip.platformFeeCents);
   }
+
+  // Restringe el pago a usuarios con cuenta MP (compatible con Split 1:1)
+  body.purpose = "wallet_purchase";
 
   const mpPreferenceUrl = `${mercadoPagoApiBaseUrl()}/checkout/preferences`;
 
@@ -286,6 +308,47 @@ function parseOAuthCookie(value: string | undefined | null) {
   }
 
   return parsed;
+}
+
+export async function refreshCreatorOAuthToken(refreshTokenEncrypted: string | null) {
+  const refreshToken = decryptSecret(refreshTokenEncrypted);
+  if (!refreshToken) {
+    throw new Error("No hay refresh token disponible. El creador debe volver a conectar su cuenta de Mercado Pago.");
+  }
+
+  const { clientId, clientSecret } = mercadoPagoOAuthCredentials();
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: clientId,
+    client_secret: clientSecret,
+    refresh_token: refreshToken
+  });
+
+  const response = await fetch(`${mercadoPagoApiBaseUrl()}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`No se pudo renovar el token de Mercado Pago (${response.status}): ${message}`);
+  }
+
+  const data = (await response.json()) as {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
+  };
+
+  const expiresAt = data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : null;
+
+  return {
+    accessToken: encryptSecret(data.access_token),
+    refreshToken: encryptSecret(data.refresh_token),
+    rawAccessToken: data.access_token,
+    expiresAt
+  };
 }
 
 export async function exchangeOAuthCode(code: string, codeVerifier?: string | null) {
@@ -445,6 +508,35 @@ export function verifyWebhookSignature(input: {
     expectedBuffer.length === signatureBuffer.length &&
     crypto.timingSafeEqual(expectedBuffer, signatureBuffer)
   );
+}
+
+const MP_IVA_RATE = 0.21;
+
+// Tasas MP Argentina — Checkout Pro según plazo elegido por el creador en su cuenta
+export const MP_FEE_RATES = {
+  instant: 0.0629,   // Al instante
+  days10:  0.0439,   // 10 días
+  days18:  0.0339,   // 18 días
+  days35:  0.0149,   // 35 días (default)
+} as const;
+
+export type MpReleaseSchedule = keyof typeof MP_FEE_RATES;
+
+export function calcMpFeeBreakdown(
+  amountCents: number,
+  platformFeeCents: number,
+  releaseSchedule: MpReleaseSchedule = "days35"
+) {
+  const mpRate = MP_FEE_RATES[releaseSchedule];
+  const mpFeeCents = Math.round(amountCents * mpRate * (1 + MP_IVA_RATE));
+  const creatorReceivesCents = Math.max(0, amountCents - mpFeeCents - platformFeeCents);
+  return {
+    totalCents: amountCents,
+    mpFeeCents,
+    appFeeCents: platformFeeCents,
+    creatorReceivesCents,
+    releaseSchedule
+  };
 }
 
 export type MpPaymentData = {

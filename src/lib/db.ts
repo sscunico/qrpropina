@@ -823,6 +823,23 @@ export async function connectCreatorMercadoPago(
   return rowToCreator(rows[0]);
 }
 
+export async function updateCreatorMpTokensRecord(
+  id: string,
+  input: { accessToken: string | null; refreshToken: string | null; expiresAt: Date | null }
+) {
+  const pool = getPool();
+  await pool.query(
+    "UPDATE creators SET mp_access_token=?, mp_refresh_token=?, mp_token_expires_at=?, updated_at=? WHERE id=?",
+    [
+      input.accessToken,
+      input.refreshToken,
+      input.expiresAt ? toMySQL(input.expiresAt.toISOString()) : null,
+      toMySQL(now()),
+      id,
+    ]
+  );
+}
+
 export async function disconnectCreatorMercadoPagoRecord(id: string) {
   const pool = getPool();
   const [exists] = await pool.query<RowDataPacket[]>("SELECT id FROM creators WHERE id = ?", [id]);
