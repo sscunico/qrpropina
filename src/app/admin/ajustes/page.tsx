@@ -87,129 +87,145 @@ export default async function AdminSettingsPage() {
 
       <DeployAlert commitSha={process.env.NEXT_PUBLIC_COMMIT_SHA ?? "unknown"} />
 
-      <div className="settings-stack">
-        <section className="panel settings-panel">
-          <div className="section-row compact-row">
-            <div>
-              <p className="kicker">Integraciones</p>
-              <h2>Mercado Pago <InfoTooltip text="Activa o desactiva la integración con Mercado Pago en toda la app. Útil para ocultar la función mientras hacés pruebas o antes de lanzar." /></h2>
-              <p className="muted">Cuando está desactivado se ocultan las páginas, botones y menús de Mercado Pago y propinas.</p>
-            </div>
-            <span className={showMercadoPagoIntegration ? "pill ok" : "pill warn"}>
-              <Wallet size={14} />
-              {showMercadoPagoIntegration ? "Visible" : "Oculto"}
-            </span>
-          </div>
+      <div className="row g-3 settings-stack">
 
-          {missingOAuthVars.length > 0 ? (
-            <div className="message error settings-message">
-              Falta configurar {missingOAuthVars.join(" y ")} para conectar Mercado Pago por OAuth.
+        {/* Fila 1: Mercado Pago + Descuento (lado a lado en pantallas medianas+) */}
+        <div className="col-12 col-md-6">
+          <section className="panel settings-panel h-100">
+            <div className="section-row compact-row">
+              <div>
+                <p className="kicker">Integraciones</p>
+                <h2>Mercado Pago <InfoTooltip text="Activa o desactiva la integración con Mercado Pago en toda la app. Útil para ocultar la función mientras hacés pruebas o antes de lanzar." /></h2>
+                <p className="muted">Cuando está desactivado se ocultan las páginas, botones y menús de Mercado Pago y propinas.</p>
+              </div>
+              <span className={showMercadoPagoIntegration ? "pill ok" : "pill warn"}>
+                <Wallet size={14} />
+                {showMercadoPagoIntegration ? "Visible" : "Oculto"}
+              </span>
             </div>
-          ) : (
-            <div className="message success settings-message">
-              OAuth configurado. Redirect URL esperado: <code>{mercadoPagoRedirectUrl}</code>
+
+            {missingOAuthVars.length > 0 ? (
+              <div className="message error settings-message">
+                Falta configurar {missingOAuthVars.join(" y ")} para conectar Mercado Pago por OAuth.
+              </div>
+            ) : (
+              <div className="message success settings-message">
+                OAuth configurado. Redirect URL esperado: <code>{mercadoPagoRedirectUrl}</code>
+              </div>
+            )}
+
+            <form action={toggleMercadoPagoIntegration} className="admin-switch-form">
+              <button aria-pressed={showMercadoPagoIntegration} className={showMercadoPagoIntegration ? "switch-control checked" : "switch-control"} type="submit">
+                <span className="switch-track"><span className="switch-thumb" /></span>
+                <span>Mostrar integración de Mercado Pago</span>
+              </button>
+            </form>
+          </section>
+        </div>
+
+        <div className="col-12 col-md-6">
+          <section className="panel settings-panel h-100">
+            <div className="section-row compact-row">
+              <div>
+                <p className="kicker">Transferencias</p>
+                <h2>Descuento de transferencia <InfoTooltip text="Porcentaje que la plataforma retiene de cada propina antes de transferirla al creador. Ejemplo: con 5%, de $100 el creador recibe $95." /></h2>
+                <p className="muted">Porcentaje que qrpropina descuenta de cada propina transferida. Por default es 5%.</p>
+              </div>
+              <span className="pill">
+                <BadgePercent size={14} />
+                {settings.transferDiscountPercent}%
+              </span>
             </div>
-          )}
 
-          <form action={toggleMercadoPagoIntegration} className="admin-switch-form">
-            <button aria-pressed={showMercadoPagoIntegration} className={showMercadoPagoIntegration ? "switch-control checked" : "switch-control"} type="submit">
-              <span className="switch-track"><span className="switch-thumb" /></span>
-              <span>Mostrar integración de Mercado Pago</span>
-            </button>
-          </form>
-        </section>
+            <form action={setTransferDiscountPercent} className="settings-number-form">
+              <PercentStepper
+                defaultValue={settings.transferDiscountPercent}
+                id="transferDiscountPercent"
+                label="Porcentaje de descuento"
+                max={40}
+                min={0}
+                name="transferDiscountPercent"
+                step={0.5}
+              />
+              <button className="button primary" type="submit">Guardar</button>
+            </form>
+          </section>
+        </div>
 
-        <section className="panel settings-panel">
-          <div className="section-row compact-row">
-            <div>
-              <p className="kicker">Transferencias</p>
-              <h2>Descuento de transferencia <InfoTooltip text="Porcentaje que la plataforma retiene de cada propina antes de transferirla al creador. Ejemplo: con 5%, de $100 el creador recibe $95." /></h2>
-              <p className="muted">Porcentaje que qrpropina descuenta de cada propina transferida. Por default es 5%.</p>
+        {/* Fila 2: Colores + Variables (lado a lado en pantallas grandes) */}
+        <div className="col-12 col-lg-5">
+          <section className="panel settings-panel h-100">
+            <div className="section-row compact-row">
+              <div>
+                <p className="kicker">Apariencia</p>
+                <h2>Colores <InfoTooltip text="Cambiá los colores base de la interfaz. Los valores se guardan y se aplican en toda la app hasta que los restablezcas." /></h2>
+                <p className="muted">Personalizá los colores de la interfaz. Los cambios se aplican en toda la app.</p>
+              </div>
+              <span className="pill">
+                <Palette size={14} />
+                Colores
+              </span>
             </div>
-            <span className="pill">
-              <BadgePercent size={14} />
-              {settings.transferDiscountPercent}%
-            </span>
-          </div>
 
-          <form action={setTransferDiscountPercent} className="settings-number-form">
-            <PercentStepper
-              defaultValue={settings.transferDiscountPercent}
-              id="transferDiscountPercent"
-              label="Porcentaje de descuento"
-              max={40}
-              min={0}
-              name="transferDiscountPercent"
-              step={0.5}
-            />
-            <button className="button primary" type="submit">Guardar</button>
-          </form>
-        </section>
-        <section className="panel settings-panel">
-          <div className="section-row compact-row">
-            <div>
-              <p className="kicker">Apariencia</p>
-              <h2>Colores <InfoTooltip text="Cambiá los colores base de la interfaz. Los valores se guardan y se aplican en toda la app hasta que los restablezcas." /></h2>
-              <p className="muted">Personalizá los colores de la interfaz. Los cambios se aplican en toda la app.</p>
-            </div>
-            <span className="pill">
-              <Palette size={14} />
-              Colores
-            </span>
-          </div>
-
-          <form action={saveColorOverrides}>
-            <div className="color-grid">
-              {BRAND_COLORS.map(({ name, label, defaultValue }) => (
-                <label className="color-row" htmlFor={name} key={name}>
-                  <div className="color-row-swatch">
-                    <input
-                      defaultValue={settings.colorOverrides[name] || defaultValue}
-                      id={name}
-                      name={name}
-                      type="color"
-                    />
-                    <code className="color-value">{settings.colorOverrides[name] || defaultValue}</code>
+            <form action={saveColorOverrides}>
+              <div className="row g-2 color-grid">
+                {BRAND_COLORS.map(({ name, label, defaultValue }) => (
+                  <div className="col-12 col-sm-6 col-lg-6" key={name}>
+                    <label className="color-row" htmlFor={name}>
+                      <div className="color-row-swatch">
+                        <input
+                          defaultValue={settings.colorOverrides[name] || defaultValue}
+                          id={name}
+                          name={name}
+                          type="color"
+                        />
+                        <code className="color-value">{settings.colorOverrides[name] || defaultValue}</code>
+                      </div>
+                      <span>{label}</span>
+                    </label>
                   </div>
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-            <div className="settings-color-actions">
-              <button className="button primary" type="submit">Guardar colores</button>
-              {Object.keys(settings.colorOverrides).length > 0 ? (
-                <button className="button secondary" formAction={resetColorOverrides} type="submit">
-                  <RotateCcw size={14} />
-                  Restablecer
-                </button>
-              ) : null}
-            </div>
-          </form>
-        </section>
-        <section className="panel settings-panel">
-          <div className="section-row compact-row">
-            <div>
-              <p className="kicker">Servidor</p>
-              <h2>Variables de entorno</h2>
-              <p className="muted">Estado de las variables configuradas en el servidor. Usá el ojito para revelar los valores.</p>
-            </div>
-            <span className="pill">
-              <ServerCog size={14} />
-              Entorno
-            </span>
-          </div>
+                ))}
+              </div>
+              <div className="settings-color-actions">
+                <button className="button primary" type="submit">Guardar colores</button>
+                {Object.keys(settings.colorOverrides).length > 0 ? (
+                  <button className="button secondary" formAction={resetColorOverrides} type="submit">
+                    <RotateCcw size={14} />
+                    Restablecer
+                  </button>
+                ) : null}
+              </div>
+            </form>
+          </section>
+        </div>
 
-          <EnvVarsSection vars={ENV_VARS.map(({ key, label, sensitive, group }) => {
-            const raw = process.env[key];
-            return {
-              key,
-              label,
-              group,
-              value: sensitive ? maskSecret(raw) : (raw || "(no configurada)"),
-              missing: !raw,
-            };
-          })} />
-        </section>
+        <div className="col-12 col-lg-7">
+          <section className="panel settings-panel h-100">
+            <div className="section-row compact-row">
+              <div>
+                <p className="kicker">Servidor</p>
+                <h2>Variables de entorno</h2>
+                <p className="muted">Estado de las variables configuradas en el servidor. Usá el ojito para revelar los valores.</p>
+              </div>
+              <span className="pill">
+                <ServerCog size={14} />
+                Entorno
+              </span>
+            </div>
+
+            <EnvVarsSection vars={ENV_VARS.map(({ key, label, sensitive, group }) => {
+              const raw = process.env[key];
+              return {
+                key,
+                label,
+                group,
+                value: sensitive ? maskSecret(raw) : (raw || "(no configurada)"),
+                missing: !raw,
+              };
+            })} />
+          </section>
+        </div>
+
       </div>
     </main>
   );

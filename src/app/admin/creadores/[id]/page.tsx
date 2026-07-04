@@ -636,7 +636,11 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                   <li>Buscá la sección <strong>Tasas y plazos</strong> y elegí <strong>Al instante</strong>.</li>
                 </ol>
                 <p className="muted">
-                  Tené en cuenta que la comisión de Mercado Pago cambia según el plazo: 35 días → 1,49% · 18 días → 3,39% · 10 días → 4,39% · Al instante → 6,29% (todos + IVA).
+                  Tené en cuenta que la comisión de Mercado Pago cambia según el plazo:<br />
+                  · 35 días → 1,49%<br />
+                  · 18 días → 3,39%<br />
+                  · 10 días → 4,39%<br />
+                  · Al instante → 6,29% (todos + IVA).<br />
                   Esta comisión la descuenta MP de tu parte — es independiente de la comisión de la app.
                 </p>
               </div>

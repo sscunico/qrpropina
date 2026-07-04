@@ -2,6 +2,7 @@
 import { BadgePercent, Heart, HeartHandshake, QrCode, Smartphone, WalletCards } from "lucide-react";
 import { GoogleIcon } from "@/components/GoogleIcon";
 import { LoginErrorModal } from "@/components/LoginErrorModal";
+import { OwnQrToast } from "@/components/OwnQrToast";
 import { getAdminSession } from "@/lib/auth";
 
 const googleLoginHref = "/api/auth/google/start?next=%2Fadmin";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 type Props = {
   searchParams: Promise<{
     loginError?: string;
+    ownqr?: string;
   }>;
 };
 
@@ -22,6 +24,7 @@ export default async function HomePage({ searchParams }: Props) {
   return (
     <main>
       <LoginErrorModal error={params.loginError} />
+      <OwnQrToast show={params.ownqr === "1"} />
       <section className="landing-hero">
         <div className="landing-content">
           <p className="landing-eyebrow">Propinas digitales por QR</p>

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { CreatorAvatar } from "@/app/t/[slug]/CreatorAvatar";
 import { TipForm } from "@/app/t/[slug]/TipForm";
+import { getAdminSession } from "@/lib/auth";
 import { getAppSettings, getQrCodeByQrId, getQrCodeWithCreatorByQrId } from "@/lib/db";
 
 type Props = {
@@ -24,7 +25,16 @@ export default async function QrTipPage({ params, searchParams }: Props) {
     // QR ya asignado o no autoinstalable → continuar con flujo normal
   }
 
-  const [qrCode, settings] = await Promise.all([getQrCodeWithCreatorByQrId(qrId), getAppSettings()]);
+  const [qrCode, settings, session] = await Promise.all([
+    getQrCodeWithCreatorByQrId(qrId),
+    getAppSettings(),
+    getAdminSession(),
+  ]);
+
+  // Si el creador logueado escanea su propio QR, lo redirigimos al home con aviso
+  if (session?.creatorId && qrCode?.creatorId === session.creatorId) {
+    redirect("/?ownqr=1");
+  }
 
   if (!qrCode || !qrCode.creator.isActive) {
     notFound();

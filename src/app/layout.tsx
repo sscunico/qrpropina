@@ -12,6 +12,7 @@ import {
   getAppSettings
 } from "@/lib/db";
 import { appName } from "@/lib/env";
+import "bootstrap/dist/css/bootstrap-grid.min.css";
 import "./globals.css";
 
 const nunitoSans = Nunito_Sans({
