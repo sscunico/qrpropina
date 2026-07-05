@@ -19,9 +19,14 @@
   box-sizing: border-box;
 }
 
+html {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: clip;
   background: var(--background);
   color: var(--text);
   font-family:
@@ -311,8 +316,12 @@ body.drawer-open {
   background: #ffffff;
   box-shadow: -24px 0 60px rgba(16, 24, 40, 0.14);
   padding: 22px 22px 28px;
-  transform: translateX(102%);
-  transition: transform 200ms ease;
+  clip-path: inset(0 0 0 100%);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    clip-path 200ms ease,
+    visibility 0s linear 200ms;
 }
 
 .side-drawer::-webkit-scrollbar {
@@ -320,7 +329,12 @@ body.drawer-open {
 }
 
 .side-drawer.show {
-  transform: translateX(0);
+  clip-path: inset(0);
+  pointer-events: auto;
+  visibility: visible;
+  transition:
+    clip-path 200ms ease,
+    visibility 0s;
 }
 
 .drawer-head {
@@ -3536,6 +3550,7 @@ tr:has(details[open]) + .log-payload-row {
 }
 
 .info-tooltip__content {
+  display: none;
   position: absolute;
   z-index: 200;
   background: var(--accent);
@@ -3556,6 +3571,7 @@ tr:has(details[open]) + .log-payload-row {
 
 .info-tooltip:hover .info-tooltip__content,
 .info-tooltip:focus-within .info-tooltip__content {
+  display: block;
   opacity: 1;
 }
 
@@ -3622,6 +3638,23 @@ tr:has(details[open]) + .log-payload-row {
   transform: translateY(-50%);
   border: 5px solid transparent;
   border-left-color: var(--accent);
+}
+
+@media (max-width: 480px) {
+  .info-tooltip__content {
+    position: fixed;
+    top: 86px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+    max-width: none;
+    transform: none !important;
+    white-space: normal;
+  }
+
+  .info-tooltip__content::after {
+    display: none;
+  }
 }
 
 /* Tips table */
@@ -4236,6 +4269,19 @@ tr:has(details[open]) + .log-payload-row {
       #f5efff;
     padding-top: 42px;
     padding-bottom: 220px;
+  }
+
+  .landing-content h1 {
+    font-size: clamp(2.65rem, 14vw, 3.2rem);
+  }
+
+  .landing-title {
+    gap: 10px;
+  }
+
+  .landing-title-heart {
+    width: clamp(34px, 11vw, 42px);
+    height: clamp(34px, 11vw, 42px);
   }
 
   .landing-intro,

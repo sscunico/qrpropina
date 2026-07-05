@@ -281,7 +281,10 @@ export function AppNavigation({ appName, session, showMercadoPagoIntegration = t
           ) : (
             <Link className="topbar-login-join" href={googleLoginHref}>
               <GoogleIcon size={18} />
-              Iniciar sesión <span className="topbar-login-join-divider">|</span> Unirse
+              <span className="topbar-login-full">
+                Iniciar sesión <span className="topbar-login-join-divider">|</span> Unirse
+              </span>
+              <span className="topbar-login-short">Entrar</span>
             </Link>
           )}
           {session ? (
