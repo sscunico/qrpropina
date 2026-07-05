@@ -362,7 +362,15 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                   {isAdmin ? "Crear / editar QR" : (
                     <span className="section-title-with-icon">
                       <QrCode aria-hidden="true" size={22} />
-                      <span>Registrar QR</span>
+                      <span>Registrar QR o Crear nuevo QR</span>
+                      <InfoTooltip
+                        position="bottom"
+                        text="Tenés dos opciones:
+
+① Si ya tenés un QR impreso de qrpropina.com — escanealo con la cámara o escribí su ID en el campo de abajo para asociarlo a tu cuenta al instante.
+
+② Si todavía no tenés ningún QR — escribí en el campo un ID único (ej: juan-mesa-1), verificá que esté disponible y registralo. Después descargás la imagen, la imprimís y tus clientes la escanean para pagarte."
+                      />
                     </span>
                   )}
                 </h2>
@@ -371,7 +379,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                     ? (selectedQr
                       ? "Editá el ID de este QR. La URL se actualiza automáticamente — si ya tenés el código impreso, vas a necesitar reimprimirlo."
                       : "Ingresá un ID único para este QR. Se genera una URL del tipo /q/tu-id: esa es la imagen que imprimís y tus clientes escanean para pagarte la propina.")
-                    : "Escaneá con la cámara un QR impreso de nuestra plataforma para asociarlo a tu cuenta. Una vez registrado podés descargarlo, imprimirlo y tus clientes lo usarán para enviarte propinas."}
+                    : "Escaneá un QR de qrpropina.com para asociarlo a tu cuenta, o creá uno nuevo escribiendo el ID que prefieras en el campo de abajo."}
                 </p>
               </div>
             </div>
@@ -384,7 +392,9 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                       <div className="message compact">
                         Editando <strong>{selectedQr.qrId}</strong>
                       </div>
-                    ) : null}
+                    ) : (
+                      <h3 className="qr-create-subtitle">Crea un nuevo QR</h3>
+                    )}
                     <QrIdForm
                       key={selectedQr?.id ?? "create"}
                       className="form qr-create-form"

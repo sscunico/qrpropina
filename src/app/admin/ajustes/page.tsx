@@ -85,9 +85,10 @@ export default async function AdminSettingsPage() {
         </div>
       </section>
 
-      <DeployAlert commitSha={process.env.NEXT_PUBLIC_COMMIT_SHA ?? "unknown"} />
-
       <div className="row g-3 settings-stack">
+
+        {/* Versión desplegada — col completa arriba */}
+        <DeployAlert commitSha={process.env.NEXT_PUBLIC_COMMIT_SHA ?? "unknown"} />
 
         {/* Fila 1: Mercado Pago + Descuento (lado a lado en pantallas medianas+) */}
         <div className="col-12 col-md-6">

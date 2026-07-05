@@ -2642,8 +2642,15 @@ h3 {
 
 .qr-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 600px) {
+  .qr-list {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
 }
 
 .qr-item-delete-form {
@@ -3220,6 +3227,26 @@ tr:has(details[open]) + .log-payload-row {
   height: 100%;
 }
 
+.qr-create-subtitle {
+  margin: 0 0 12px;
+  color: var(--accent-strong);
+  font-size: 1rem;
+}
+
+.deploy-alert-panel {
+  border-left: 3px solid var(--accent);
+}
+
+.deploy-commit-code {
+  display: inline-block;
+  background: var(--lavender);
+  color: var(--accent-strong);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 0.84rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 .settings-message {
   margin-bottom: 14px;
 }
@@ -3515,12 +3542,12 @@ tr:has(details[open]) + .log-payload-row {
   color: #fff;
   font-size: 0.8rem;
   font-weight: 500;
-  line-height: 1.4;
-  padding: 6px 10px;
+  line-height: 1.5;
+  padding: 8px 12px;
   border-radius: 4px;
-  white-space: normal;
+  white-space: pre-line;
   width: max-content;
-  max-width: 220px;
+  max-width: 260px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;
@@ -4287,9 +4314,22 @@ tr:has(details[open]) + .log-payload-row {
 /* Dashboard, landing y grillas administrativas */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 12px;
   margin-top: 18px;
+}
+
+@media (min-width: 480px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 860px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
 }
 
 .dashboard-card {
