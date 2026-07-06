@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Info } from "lucide-react";
+import { Info, X } from "lucide-react";
 
 type Props = {
   text: string;
@@ -95,12 +95,25 @@ export function InfoTooltip({ text, position = "top" }: Props) {
             `info-tooltip__content--${position}`,
             isMobile ? "info-tooltip__content--mobile" : null
           ].filter(Boolean).join(" ")}
+          aria-label={isMobile ? "Ayuda" : undefined}
           id={id}
           ref={contentRef}
-          role="tooltip"
+          role={isMobile ? "dialog" : "tooltip"}
           style={style}
         >
-          {text}
+          <span className="info-tooltip__text">{text}</span>
+          <button
+            aria-label="Cerrar ayuda"
+            className="info-tooltip__close"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen(false);
+            }}
+            type="button"
+          >
+            <X size={16} />
+          </button>
         </span>,
         document.body
       )

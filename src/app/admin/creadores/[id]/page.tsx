@@ -10,7 +10,6 @@ import {
   Power,
   QrCode,
   Trash2,
-  Unplug,
   Wallet
 } from "lucide-react";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -18,7 +17,6 @@ import {
   claimCreatorQr,
   createCreatorQr,
   deleteCreatorQr,
-  disconnectMercadoPago,
   markOnboardingCompleted,
   toggleCreator,
   updateCreator,
@@ -90,6 +88,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
   const perfilHref = `${creatorHref}?section=perfil`;
   const commissionPercent = settings.transferDiscountPercent;
   const showMercadoPagoIntegration = settings.showMercadoPagoIntegration;
+  const isMercadoPagoConnected = sellerIsConnected(creator);
   const activeSection =
     (requestedSection === "mercadopago" || requestedSection === "propinas") && !showMercadoPagoIntegration
       ? "qrs"
@@ -122,7 +121,6 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
   const updateMpAliasWithId = updateCreatorMercadoPagoAlias.bind(null, creator.id);
   const updateSocialsWithId = updateCreatorSocials.bind(null, creator.id);
   const updateThankYouWithId = updateCreatorThankYou.bind(null, creator.id);
-  const disconnectMpWithId = disconnectMercadoPago.bind(null, creator.id);
   const toggleWithId = toggleCreator.bind(null, creator.id, !creator.isActive);
   const createQrWithId = createCreatorQr.bind(null, creator.id);
   const claimQrWithId = claimCreatorQr.bind(null, creator.id);
@@ -130,7 +128,8 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
   const selectedQrAction = selectedQr
     ? updateCreatorQr.bind(null, creator.id, selectedQr.id)
     : createQrWithId;
-  const bothChecklistDone = creator.qrCodes.length > 0 && sellerIsConnected(creator);
+  const bothChecklistDone = creator.qrCodes.length > 0 && isMercadoPagoConnected;
+  const showMercadoPagoHeroPrompt = !isAdmin && showMercadoPagoIntegration && !isMercadoPagoConnected;
 
   if (!isAdmin && bothChecklistDone && !creator.onboardingCompleted) {
     await markOnboardingCompleted(creator.id);
@@ -145,13 +144,13 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
       !creator.role ||
       creator.role === "Creador" ||
       creator.qrCodes.length === 0 ||
-      (showMercadoPagoIntegration && !sellerIsConnected(creator))
+      (showMercadoPagoIntegration && !isMercadoPagoConnected)
     ) &&
     !bothChecklistDone;
 
   return (
     <main className="page">
-      <section className={!isAdmin ? "hero-row hero-row--split" : "hero-row"}>
+      <section className={showMercadoPagoHeroPrompt ? "hero-row hero-row--split" : "hero-row"}>
         <div>
           <p className="kicker">{sectionTitle[activeSection]}</p>
           <h1>{creator.displayName}</h1>
@@ -162,46 +161,28 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
             </Link>
           </div>
         </div>
-        <div
-          className="actions"
-          id="Contenedor-mercado-pago"
-          style={!isAdmin && showMercadoPagoIntegration && sellerIsConnected(creator) && activeSection !== "mercadopago"
-            ? { display: "none" }
-            : undefined}
-        >
-          {isAdmin ? (
-            <Link className="button secondary" href="/admin/creadores">
-              <ArrowLeft size={17} />
-              Volver
-            </Link>
-          ) : null}
-          {showMercadoPagoIntegration && !isAdmin ? (
-            <div id="banner-mercado-libre">
-              {sellerIsConnected(creator) ? (
-                <div className="mp-button-row">
-                  <MercadoPagoAlertButton creatorId={creator.id} connected />
-                  <form action={disconnectMpWithId}>
-                    <button className="button danger mp-disconnect-btn" type="submit">
-                      <Unplug size={17} />
-                      Desintegrar
-                    </button>
-                  </form>
-                </div>
-              ) : (
-                <>
-                  <MercadoPagoAlertButton creatorId={creator.id} />
-                  <span className="mp-connect-label">
-                    Integración con Mercado Pago
-                    <InfoTooltip
-                      text="Para recibir propinas de tus clientes necesitás conectar tu cuenta de Mercado Pago. Al integrarla, cada pago que hagan desde tu QR se acredita directamente en tu billetera de MP. Es rápido, seguro y solo se hace una vez."
-                      position="bottom"
-                    />
-                  </span>
-                </>
-              )}
-            </div>
-          ) : null}
-        </div>
+        {isAdmin || showMercadoPagoHeroPrompt ? (
+          <div className="actions" id="Contenedor-mercado-pago">
+            {isAdmin ? (
+              <Link className="button secondary" href="/admin/creadores">
+                <ArrowLeft size={17} />
+                Volver
+              </Link>
+            ) : null}
+            {showMercadoPagoHeroPrompt ? (
+              <div id="banner-mercado-libre">
+                <MercadoPagoAlertButton creatorId={creator.id} />
+                <span className="mp-connect-label">
+                  Integración con Mercado Pago
+                  <InfoTooltip
+                    text="Para recibir propinas de tus clientes necesitás conectar tu cuenta de Mercado Pago. Al integrarla, cada pago que hagan desde tu QR se acredita directamente en tu billetera de MP. Es rápido, seguro y solo se hace una vez."
+                    position="bottom"
+                  />
+                </span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {showMercadoPagoIntegration && mp === "connected" ? (
@@ -234,15 +215,15 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
               </div>
             </div>
 
-            <div className={`banner-check-item${sellerIsConnected(creator) ? " done" : ""}`}>
+            <div className={`banner-check-item${isMercadoPagoConnected ? " done" : ""}`}>
               <span className="banner-check-icon">
-                {sellerIsConnected(creator)
+                {isMercadoPagoConnected
                   ? <CheckCircle2 size={22} />
                   : <span className="banner-check-empty" />}
               </span>
               <div>
                 <strong>Mercado Pago</strong>
-                <p>{sellerIsConnected(creator) ? "Cuenta conectada" : "Sin integrar aún"}</p>
+                <p>{isMercadoPagoConnected ? "Cuenta conectada" : "Sin integrar aún"}</p>
               </div>
             </div>
           </div>
@@ -590,9 +571,9 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                   Primero cargá el alias de Mercado Pago. La conexión real de la cuenta se confirma luego con OAuth.
                 </p>
               </div>
-              <span className={sellerIsConnected(creator) ? "pill ok" : "pill warn"}>
+              <span className={isMercadoPagoConnected ? "pill ok" : "pill warn"}>
                 <Wallet size={14} />
-                {sellerIsConnected(creator) ? "Cuenta conectada" : "Sin integrar"}
+                {isMercadoPagoConnected ? "Cuenta conectada" : "Sin integrar"}
               </span>
             </div>
 
