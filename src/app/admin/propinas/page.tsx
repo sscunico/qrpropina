@@ -113,6 +113,55 @@ export default async function PropinasPage({ searchParams }: Props) {
                 </table>
               </DragScrollArea>
 
+              <div className="tip-card-list">
+                {items.map((tip) => {
+                  const mp = parseMpPaymentData(tip.rawPayment);
+                  const receivedCents = mp.netReceivedAmountCents ?? (tip.amountCents - tip.platformFeeCents);
+                  const isConfirmed = mp.netReceivedAmountCents !== null;
+
+                  return (
+                    <article className="tip-card" key={`${tip.id}-card`}>
+                      <div className="tip-card-head">
+                        <div className="tip-creator-cell">
+                          {tip.creator.photoUrl ? (
+                            <img
+                              alt=""
+                              className="tip-creator-avatar"
+                              referrerPolicy="no-referrer"
+                              src={tip.creator.photoUrl}
+                            />
+                          ) : (
+                            <div className="tip-creator-avatar tip-creator-avatar-fallback">
+                              {tip.creator.displayName.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <span>{tip.creator.displayName}</span>
+                        </div>
+                        <span className="muted">{formatDate(tip.createdAt)}</span>
+                      </div>
+                      <div className="tip-card-grid">
+                        <div>
+                          <span>Recibe</span>
+                          <strong>{formatMoney(receivedCents)}{!isConfirmed ? <em> est.</em> : null}</strong>
+                        </div>
+                        <div>
+                          <span>Comisión</span>
+                          <strong>{tip.creator.commissionPercent}%</strong>
+                        </div>
+                        <div>
+                          <span>Comisión $</span>
+                          <strong>{formatMoney(tip.platformFeeCents)}</strong>
+                        </div>
+                        <div>
+                          <span>MP split</span>
+                          <strong>{mp.marketplaceFeeCents !== null ? formatMoney(mp.marketplaceFeeCents) : "-"}</strong>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
               {totalPages > 1 ? (
                 <div className="pagination">
                   {page > 1 ? (
@@ -193,6 +242,29 @@ export default async function PropinasPage({ searchParams }: Props) {
                 </tbody>
               </table>
             </DragScrollArea>
+
+            <div className="tip-card-list">
+              {items.map((tip) => {
+                const mp = parseMpPaymentData(tip.rawPayment);
+                const receivedCents = mp.netReceivedAmountCents ?? (tip.amountCents - tip.platformFeeCents);
+                const isConfirmed = mp.netReceivedAmountCents !== null;
+
+                return (
+                  <article className="tip-card" key={`${tip.id}-card`}>
+                    <div className="tip-card-head">
+                      <strong>Propina recibida</strong>
+                      <span className="muted">{formatDate(tip.createdAt)}</span>
+                    </div>
+                    <div className="tip-card-grid tip-card-grid--single">
+                      <div>
+                        <span>Cantidad que recibís</span>
+                        <strong>{formatMoney(receivedCents)}{!isConfirmed ? <em> est.</em> : null}</strong>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
 
             {totalPages > 1 ? (
               <div className="pagination">

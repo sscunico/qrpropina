@@ -115,6 +115,55 @@ export default async function NotificacionesPage({ searchParams }: Props) {
             </table>
             </div>
 
+            <div className="notif-card-list">
+              {items.map((n) => (
+                <article className={n.isRead ? "notif-card" : "notif-card unread"} key={`${n.id}-card`}>
+                  <div className="notif-card-main">
+                    {n.photoUrl ? (
+                      <img
+                        alt=""
+                        className="notif-card-avatar"
+                        referrerPolicy="no-referrer"
+                        src={n.photoUrl}
+                      />
+                    ) : null}
+                    <div className="notif-card-copy">
+                      <strong>{n.title}</strong>
+                      {n.body ? <p className="notif-body">{n.body}</p> : null}
+                      <span className="muted notif-card-date">
+                        {new Date(n.createdAt).toLocaleString("es-AR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </span>
+                    </div>
+                    {n.imageUrl ? (
+                      <img
+                        alt="QR"
+                        className="notif-card-image"
+                        src={n.imageUrl}
+                      />
+                    ) : null}
+                  </div>
+                  <form action={deleteNotificationAction} className="notif-card-actions">
+                    <input name="id" type="hidden" value={n.id} />
+                    <input name="creatorId" type="hidden" value={targetId ?? ""} />
+                    <button
+                      className="button secondary"
+                      title="Eliminar notificación"
+                      type="submit"
+                    >
+                      <Trash2 size={16} />
+                      Eliminar
+                    </button>
+                  </form>
+                </article>
+              ))}
+            </div>
+
             {totalPages > 1 ? (
               <div className="pagination">
                 {page > 1 ? (

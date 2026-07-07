@@ -4,15 +4,17 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Plus } from "lucide-react";
 import { createAdminQr } from "@/app/admin/actions";
+import { GeneratePrintPageButton } from "./GeneratePrintPageButton";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+
   return (
     <button className="button primary" disabled={pending} type="submit">
       {pending ? (
         <>
           <span className="btn-spinner" />
-          Creando…
+          Creando...
         </>
       ) : (
         <>
@@ -28,7 +30,7 @@ export function AdminQrCreateForm() {
   const [autoInstallable, setAutoInstallable] = useState(true);
 
   return (
-    <form action={createAdminQr} className="form">
+    <form action={createAdminQr} className="form admin-qr-form">
       <div className="form-grid">
         <div className="field">
           <label htmlFor="qrId">ID del QR</label>
@@ -52,15 +54,16 @@ export function AdminQrCreateForm() {
           <span className="switch-track"><span className="switch-thumb" /></span>
           <span>QR autoinstalable</span>
         </label>
-        {autoInstallable && (
+        {autoInstallable ? (
           <p className="muted admin-qr-ai-hint">
             La URL del QR incluirá <code>?AI=True</code>
           </p>
-        )}
+        ) : null}
       </div>
 
-      <div>
+      <div className="qr-form-actions">
         <SubmitButton />
+        <GeneratePrintPageButton />
       </div>
     </form>
   );

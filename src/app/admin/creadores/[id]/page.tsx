@@ -642,6 +642,7 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
         {showMercadoPagoIntegration && activeSection === "propinas" ? (
           <section className="panel">
             <h2>Ultimas propinas</h2>
+            <div className="creator-tip-table-wrap table-scroll-wrap">
             <table className="table">
               <thead>
                 <tr>
@@ -669,6 +670,32 @@ export default async function CreatorDetailPage({ params, searchParams }: Props)
                 ) : null}
               </tbody>
             </table>
+            </div>
+            <div className="creator-tip-card-list">
+              {creator.tips.map((tip) => (
+                <article className="creator-tip-card" key={`${tip.id}-card`}>
+                  <div>
+                    <span>Monto</span>
+                    <strong>{formatMoney(tip.amountCents, tip.currency)}</strong>
+                  </div>
+                  <div>
+                    <span>Comisión</span>
+                    <strong>{formatMoney(tip.platformFeeCents, tip.currency)}</strong>
+                  </div>
+                  <div>
+                    <span>Estado</span>
+                    <strong>{tip.status}</strong>
+                  </div>
+                  <div>
+                    <span>Fecha</span>
+                    <strong>{new Date(tip.createdAt).toLocaleString("es-AR")}</strong>
+                  </div>
+                </article>
+              ))}
+              {creator.tips.length === 0 ? (
+                <p className="muted">Todavia no hay propinas.</p>
+              ) : null}
+            </div>
           </section>
         ) : null}
       </div>

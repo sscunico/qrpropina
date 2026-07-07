@@ -192,7 +192,7 @@ export function CreatorsGrid({ rows }: CreatorsGridProps) {
         render: (row) => {
           return (
             <td key={`${row.id}-actions`}>
-              <div className="table-actions">
+              <div className="table-actions" data-no-drag-scroll>
                 <Link className="icon-button primary" href={`/admin/creadores/${row.id}`} title="Ver QR"><QrCode size={18} /></Link>
                 <Link className="icon-button secondary" href={`/t/${row.slug}`} title="Abrir página pública"><ExternalLink size={18} /></Link>
                 <button className="icon-button danger" title="Borrar creador" type="button" onClick={() => setConfirmId(row.id)}>
@@ -295,6 +295,57 @@ export function CreatorsGrid({ rows }: CreatorsGridProps) {
         </tbody>
       </table>
     </DragScrollArea>
+
+    <div className="admin-creator-card-list">
+      {rows.map((row) => (
+        <article className="admin-creator-card" key={`${row.id}-card`}>
+          <div className="admin-creator-card-header">
+            <img
+              alt=""
+              decoding="async"
+              height={48}
+              referrerPolicy="no-referrer"
+              src={row.photoUrl || "/default-profile.svg"}
+              width={48}
+            />
+            <div className="admin-creator-card-title">
+              <strong>{row.displayName}</strong>
+              <span>{row.label}</span>
+              <code>{row.publicUrl}</code>
+            </div>
+          </div>
+
+          <div className="admin-creator-card-metrics">
+            <div>
+              <span>Comisión</span>
+              <strong>{row.commissionPercent}%</strong>
+            </div>
+            <div>
+              <span>Propinas</span>
+              <strong>{row.receivedLabel} / {row.platformFeeLabel}</strong>
+            </div>
+            <div>
+              <span>Mercado Pago</span>
+              {row.mercadoPagoConnected ? (
+                <div className="mp-connect-button mp-connect-button--connected mp-connect-button--mini" aria-label="Mercado Pago integrado">
+                  <img alt="Mercado Pago" src="/mp-logo.svg" />
+                </div>
+              ) : (
+                <strong className="muted">Sin integrar</strong>
+              )}
+            </div>
+          </div>
+
+          <div className="table-actions admin-creator-card-actions">
+            <Link className="icon-button primary" href={`/admin/creadores/${row.id}`} title="Ver QR"><QrCode size={18} /></Link>
+            <Link className="icon-button secondary" href={`/t/${row.slug}`} title="Abrir página pública"><ExternalLink size={18} /></Link>
+            <button className="icon-button danger" title="Borrar creador" type="button" onClick={() => setConfirmId(row.id)}>
+              <Trash2 size={18} />
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
     </div>
   );
 }

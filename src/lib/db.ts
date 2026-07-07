@@ -47,6 +47,7 @@ export type CreatorQrCode = {
   creatorId: string | null;
   qrId: string;
   isAutoInstallable: boolean;
+  isBulkPrint: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -283,6 +284,7 @@ function rowToQrCode(r: RowDataPacket): CreatorQrCode {
     creatorId: r.creator_id ?? null,
     qrId: r.qr_id,
     isAutoInstallable: Boolean(r.is_auto_installable),
+    isBulkPrint: Boolean(r.is_bulk_print),
     createdAt: fromMySQL(r.created_at) ?? now(),
     updatedAt: fromMySQL(r.updated_at) ?? now(),
   };
@@ -899,7 +901,7 @@ async function resolveUniqueQrId(pool: Pool, candidate: string): Promise<string>
   return candidate + suffix;
 }
 
-export async function createAdminQrRecord(input: { qrId?: string; isAutoInstallable: boolean }): Promise<CreatorQrCode> {
+export async function createAdminQrRecord(input: { qrId?: string; isAutoInstallable: boolean; isBulkPrint?: boolean }): Promise<CreatorQrCode> {
   const pool = getPool();
   const base = input.qrId ? validateQrId(input.qrId) : timestampQrId();
   const qrId = await resolveUniqueQrId(pool, base);
@@ -907,19 +909,29 @@ export async function createAdminQrRecord(input: { qrId?: string; isAutoInstalla
   const timestamp = now();
   const id = crypto.randomUUID();
   await pool.query(
-    "INSERT INTO qr_codes (id, creator_id, qr_id, is_auto_installable, created_at, updated_at) VALUES (?, NULL, ?, ?, ?, ?)",
-    [id, qrId, input.isAutoInstallable ? 1 : 0, toMySQL(timestamp), toMySQL(timestamp)]
+    "INSERT INTO qr_codes (id, creator_id, qr_id, is_auto_installable, is_bulk_print, created_at, updated_at) VALUES (?, NULL, ?, ?, ?, ?, ?)",
+    [id, qrId, input.isAutoInstallable ? 1 : 0, input.isBulkPrint ? 1 : 0, toMySQL(timestamp), toMySQL(timestamp)]
   );
   const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM qr_codes WHERE id = ?", [id]);
   return rowToQrCode(rows[0]);
 }
 
-export async function listAdminQrCodes(): Promise<CreatorQrCode[]> {
+export async function listAdminQrCodes(
+  page = 1,
+  pageSize = 20
+): Promise<{ items: CreatorQrCode[]; total: number; totalPages: number }> {
   const pool = getPool();
-  const [rows] = await pool.query<RowDataPacket[]>(
-    "SELECT * FROM qr_codes WHERE creator_id IS NULL ORDER BY created_at DESC"
-  );
-  return (rows as RowDataPacket[]).map(rowToQrCode);
+  const [[countRows], [rows]] = await Promise.all([
+    pool.query<RowDataPacket[]>("SELECT COUNT(*) cnt FROM qr_codes WHERE creator_id IS NULL"),
+    pool.query<RowDataPacket[]>(
+      "SELECT * FROM qr_codes WHERE creator_id IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      [pageSize, (page - 1) * pageSize]
+    ),
+  ]);
+  const total = Number(countRows[0]?.cnt ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  return { items: (rows as RowDataPacket[]).map(rowToQrCode), total, totalPages };
 }
 
 export async function deleteAdminQrCodeRecord(recordId: string): Promise<void> {

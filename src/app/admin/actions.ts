@@ -397,6 +397,20 @@ export async function deleteAdminQr(recordId: string) {
   revalidatePath("/admin/qr");
 }
 
+export async function deleteAdminQrBulk(recordIds: string[]) {
+  await requireAdmin();
+
+  for (const recordId of recordIds) {
+    try {
+      await deleteAdminQrCodeRecord(recordId);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : "No se pudo eliminar el QR.");
+    }
+  }
+
+  revalidatePath("/admin/qr");
+}
+
 export async function updateCreatorMercadoPagoAlias(creatorId: string, formData: FormData) {
   await requireQrAccess(creatorId);
 

@@ -3,7 +3,7 @@ export function appUrl() {
 }
 
 export function appName() {
-  return process.env.APP_NAME || "qrpropina";
+  return process.env.APP_NAME || "QRpropina";
 }
 
 export function isDemoCheckoutEnabled() {

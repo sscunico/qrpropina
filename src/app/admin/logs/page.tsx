@@ -145,6 +145,58 @@ export default async function AdminLogsPage({ searchParams }: Props) {
               </table>
             </div>
 
+            <div className="log-card-list">
+              {events.map((event) => {
+                const parsed = tryParseJson(event.payload);
+                const hasReqRes = parsed && (parsed.request || parsed.response);
+                const url = parsed?.request?.url ?? parsed?.url;
+                const method = parsed?.request?.method ?? parsed?.method;
+
+                return (
+                  <article className="log-card" key={`${event.id}-card`}>
+                    <div className="log-card-head">
+                      <span className={eventTypeBadgeClass(event.eventType)}>{event.eventType}</span>
+                      <span className="muted">{formatDateTime(event.createdAt)}</span>
+                    </div>
+                    <div className="log-card-meta">
+                      <span>Tip</span>
+                      <code>{event.tipId || "-"}</code>
+                    </div>
+                    <div className="log-card-meta">
+                      <span>URL</span>
+                      {url ? (
+                        <div className="log-url-row compact">
+                          <span className="log-method">{method ?? "GET"}</span>
+                          <code className="log-url">{url}</code>
+                        </div>
+                      ) : <strong className="muted">-</strong>}
+                    </div>
+                    <details className="log-card-details">
+                      <summary>Ver payload</summary>
+                      {hasReqRes ? (
+                        <div className="log-req-res">
+                          {parsed.request ? (
+                            <div className="log-req-res-section">
+                              <p className="log-req-res-label">REQUEST</p>
+                              <pre className="log-payload">{JSON.stringify(parsed.request, null, 2)}</pre>
+                            </div>
+                          ) : null}
+                          {parsed.response ? (
+                            <div className="log-req-res-section">
+                              <p className="log-req-res-label">RESPONSE</p>
+                              <pre className="log-payload">{JSON.stringify(parsed.response, null, 2)}</pre>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <pre className="log-payload">{parsed ? JSON.stringify(parsed, null, 2) : event.payload}</pre>
+                      )}
+                    </details>
+                  </article>
+                );
+              })}
+            </div>
+
             <nav className="pagination" aria-label="Paginación de logs">
               {safePage > 1 ? <Link className="button secondary" href={buildHref(safePage - 1, pageSize)}><ChevronLeft size={16} />Anterior</Link> : null}
               <span className="muted pagination-info">Página {safePage} de {totalPages}</span>
