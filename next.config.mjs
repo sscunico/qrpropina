@@ -9,7 +9,8 @@ try {
 const nextConfig = {
   env: {
     NEXT_PUBLIC_COMMIT_SHA: commitSha
-  }
+  },
+  serverExternalPackages: ["@resvg/resvg-js"]
 };
 
 export default nextConfig;

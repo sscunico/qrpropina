@@ -1,6 +1,19 @@
 import QRCode from "qrcode";
 import sharp from "sharp";
 import path from "path";
+import { Resvg } from "@resvg/resvg-js";
+
+// Fuente embebida para que el texto se renderice igual en cualquier servidor,
+// sin depender de qué tipografías tenga instaladas el sistema operativo.
+const FONT_PATH = path.join(process.cwd(), "src", "assets", "fonts", "NotoSans-Regular.ttf");
+
+function renderTextPng(svg: string, width: number): Buffer {
+  const resvg = new Resvg(svg, {
+    font: { fontFiles: [FONT_PATH], loadSystemFonts: false, defaultFontFamily: "Noto Sans" },
+    fitTo: { mode: "width", value: width }
+  });
+  return resvg.render().asPng();
+}
 
 function extractQrId(value: string): string {
   try {
@@ -62,7 +75,7 @@ export async function qrDataUrl(value: string) {
       <text
         x="${headerPadding * 2 + logoSize}"
         y="${logoTop + logoSize / 2}"
-        font-family="Arial, sans-serif"
+        font-family="Noto Sans, sans-serif"
         font-weight="bold"
         font-size="${fontSize}"
         fill="#101828"
@@ -71,7 +84,7 @@ export async function qrDataUrl(value: string) {
       >QRpropina.com</text>
     </svg>
   `;
-  const textBuffer = Buffer.from(textSvg);
+  const textBuffer = renderTextPng(textSvg, width);
 
   // Pie con el ID del QR, chiquito y centrado, debajo del QR
   const qrId = extractQrId(value);
@@ -82,7 +95,7 @@ export async function qrDataUrl(value: string) {
       <text
         x="${width / 2}"
         y="${footerHeight / 2}"
-        font-family="Arial, sans-serif"
+        font-family="Noto Sans, sans-serif"
         font-size="${footerFontSize}"
         fill="#667085"
         dominant-baseline="central"
@@ -90,7 +103,7 @@ export async function qrDataUrl(value: string) {
       >${qrId}</text>
     </svg>
   `;
-  const footerBuffer = Buffer.from(footerSvg);
+  const footerBuffer = renderTextPng(footerSvg, width);
 
   const finalBuffer = await sharp({
     create: {

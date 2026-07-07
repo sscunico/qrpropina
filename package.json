@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@tiptap/extension-character-count": "^3.27.1",
     "@tiptap/pm": "^3.27.1",
     "@tiptap/react": "^3.27.1",
