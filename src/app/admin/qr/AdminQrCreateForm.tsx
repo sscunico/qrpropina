@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Plus } from "lucide-react";
 import { createAdminQr } from "@/app/admin/actions";
 import { GeneratePrintPageButton } from "./GeneratePrintPageButton";
+import { GeneratePrintPdfButton } from "./GeneratePrintPdfButton";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -64,6 +65,7 @@ export function AdminQrCreateForm() {
       <div className="qr-form-actions">
         <SubmitButton />
         <GeneratePrintPageButton />
+        <GeneratePrintPdfButton />
       </div>
     </form>
   );
