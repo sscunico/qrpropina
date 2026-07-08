@@ -881,6 +881,12 @@ export async function checkQrIdAvailability(input: string, exceptRecordId?: stri
   }
 }
 
+function randomHex(byteLength: number): string {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function timestampQrId(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -914,6 +920,54 @@ export async function createAdminQrRecord(input: { qrId?: string; isAutoInstalla
   );
   const [rows] = await pool.query<RowDataPacket[]>("SELECT * FROM qr_codes WHERE id = ?", [id]);
   return rowToQrCode(rows[0]);
+}
+
+// IDs únicos generados localmente (timestamp + sufijo hex de 4 bytes, colisión
+// prácticamente imposible), sin tocar la base. Permite armar las imágenes/el PDF
+// primero y recién persistir los registros si esa generación termina bien.
+export function generateBulkQrIds(count: number): string[] {
+  const base = timestampQrId();
+  return Array.from({ length: count }, () => `${base}-${randomHex(4)}`);
+}
+
+// Inserta todos los `qrIds` en una sola consulta en vez de N round-trips
+// secuenciales a la base remota, que en hosting compartido puede superar el
+// timeout del proxy cuando se generan muchos QR (páginas de impresión masivas).
+export async function createAdminQrRecordsBulk(
+  qrIds: string[],
+  input: { isAutoInstallable: boolean; isBulkPrint?: boolean }
+): Promise<CreatorQrCode[]> {
+  if (qrIds.length === 0) return [];
+  const pool = getPool();
+  const timestamp = now();
+  const mysqlTimestamp = toMySQL(timestamp);
+
+  const records = qrIds.map((qrId) => ({ id: crypto.randomUUID(), qrId }));
+
+  const placeholders = records.map(() => "(?, NULL, ?, ?, ?, ?, ?)").join(", ");
+  const values = records.flatMap(({ id, qrId }) => [
+    id,
+    qrId,
+    input.isAutoInstallable ? 1 : 0,
+    input.isBulkPrint ? 1 : 0,
+    mysqlTimestamp,
+    mysqlTimestamp,
+  ]);
+
+  await pool.query(
+    `INSERT INTO qr_codes (id, creator_id, qr_id, is_auto_installable, is_bulk_print, created_at, updated_at) VALUES ${placeholders}`,
+    values
+  );
+
+  return records.map(({ id, qrId }) => ({
+    id,
+    creatorId: null,
+    qrId,
+    isAutoInstallable: input.isAutoInstallable,
+    isBulkPrint: Boolean(input.isBulkPrint),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  }));
 }
 
 export async function listAdminQrCodes(

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import sharp from "sharp";
 import { PDFDocument } from "pdf-lib";
 import { requireAdmin } from "@/lib/auth";
-import { createAdminQrRecord } from "@/lib/db";
+import { createAdminQrRecordsBulk, generateBulkQrIds } from "@/lib/db";
 import { qrDataUrl } from "@/lib/qrcode";
 import { appUrl } from "@/lib/env";
 
@@ -16,6 +16,7 @@ const PAGE_MARGIN_MM = 8;
 const CELL_FILL_RATIO_WIDTH = 0.9;
 const CELL_VERTICAL_GAP_RATIO = 0.02; // 2% arriba + 2% abajo
 const IMAGE_SCALE = 0.95; // imagen 5% más chica dentro de su espacio disponible
+const IMAGE_CONCURRENCY = 4; // evita picos de memoria/CPU en hosting compartido con muchos QR
 
 function mmToPt(mm: number) {
   return mm * MM_TO_PT;
@@ -26,6 +27,19 @@ function normalizePageCount(value: unknown): number {
   return PAGE_COUNT_OPTIONS.includes(parsed) ? parsed : 1;
 }
 
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 export async function POST(request: Request) {
   await requireAdmin();
 
@@ -33,20 +47,18 @@ export async function POST(request: Request) {
   const pageCount = normalizePageCount(body?.pages);
   const totalQr = ROWS * COLUMNS * pageCount;
 
-  const records = [];
-  for (let i = 0; i < totalQr; i++) {
-    records.push(await createAdminQrRecord({ isAutoInstallable: true, isBulkPrint: true }));
-  }
+  // Generamos los IDs y armamos el PDF ANTES de tocar la base: si algo falla o
+  // tarda demasiado en esta etapa (la más pesada, CPU-bound), no queda ningún
+  // QR huérfano creado sin haberse llegado a imprimir.
+  const qrIds = generateBulkQrIds(totalQr);
 
-  const images = await Promise.all(
-    records.map(async (record) => {
-      const url = `${appUrl()}/q/${record.qrId}?AI=True`;
-      const dataUrl = await qrDataUrl(url);
-      const buffer = Buffer.from(dataUrl.split(",")[1], "base64");
-      const metadata = await sharp(buffer).metadata();
-      return { buffer, width: metadata.width ?? 1, height: metadata.height ?? 1 };
-    })
-  );
+  const images = await mapWithConcurrency(qrIds, IMAGE_CONCURRENCY, async (qrId) => {
+    const url = `${appUrl()}/q/${qrId}?AI=True`;
+    const dataUrl = await qrDataUrl(url);
+    const buffer = Buffer.from(dataUrl.split(",")[1], "base64");
+    const metadata = await sharp(buffer).metadata();
+    return { buffer, width: metadata.width ?? 1, height: metadata.height ?? 1 };
+  });
 
   const pageWidthPt = mmToPt(PAGE_WIDTH_MM);
   const pageHeightPt = mmToPt(PAGE_HEIGHT_MM);
@@ -91,6 +103,11 @@ export async function POST(request: Request) {
   }
 
   const pdfBytes = await pdfDoc.save();
+
+  // El PDF ya está armado con éxito: recién ahora persistimos los QR, en un
+  // único insert masivo en vez de un round-trip por registro.
+  await createAdminQrRecordsBulk(qrIds, { isAutoInstallable: true, isBulkPrint: true });
+
   const date = new Date().toISOString().slice(0, 10);
 
   return new NextResponse(new Uint8Array(pdfBytes), {
